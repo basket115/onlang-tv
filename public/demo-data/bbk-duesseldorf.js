@@ -1,5 +1,5 @@
 // bbk-duesseldorf.js
-// Demo-Mandant "BBK Düsseldorf/Neuss" — Orange/Schwarz, wie im Entwurf.
+// Demo-Mandant "BBK Düsseldorf/Neuss" — Orange/Dunkelblau, wie im Entwurf.
 // AUSSCHLIESSLICH Daten, keine eigene Logik (siehe Vorgabe "kein
 // Sondercode"). Videos verweisen auf dieselben lokalen Testdateien wie
 // der Standard-Mandant (kein echtes BBK-Footage vorhanden) — Titel/
@@ -19,8 +19,8 @@ window.ONLANG.tenantRegistry['bbk-duesseldorf'] = {
     logoText: 'BBK',
     theme: {
       accent: '#ff7a1a',
-      background: '#0a0a0c',
-      surface: '#161616',
+      background: '#0f172a',
+      surface: '#18233d',
       text: '#ffffff',
     },
     presenter: {

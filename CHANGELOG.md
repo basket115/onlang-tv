@@ -1,3 +1,12 @@
+# Changelog
+
+## Version 1.3 – BBK-Blau
+
+- BBK-TV-Hintergrund von Schwarz auf dunkles BBK-Blau (`#0f172a`) umgestellt.
+- BBK-Flächen und Karten auf abgestimmtes Dunkelblau (`#18233d`) gesetzt.
+- ONLANG TV und Scorpions TV unverändert.
+- Keine Änderungen an Player-, Playlist- oder Werbelogik.
+
 # Änderungsverlauf
 
 ## 1.0.0 – Präsentationsversion (22.07.2026)
