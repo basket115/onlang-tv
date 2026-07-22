@@ -1,0 +1,7 @@
+ONLANG TV Demo – Version 0.5 GROSSBILD
+
+Änderung gegenüber Version 0.4:
+- Player bei ONLANG TV, BBK TV und Scorpions TV über die volle Seitenbreite
+- Programmliste nicht mehr rechts neben dem Player, sondern kompakt darunter
+- Videobild dadurch wesentlich größer und klarer Mittelpunkt der Startseite
+- Keine Änderung an Player-, Playlist-, Werbe- oder Mandantenlogik

@@ -1,0 +1,8 @@
+ONLANG TV Demo – Version 0.6
+
+Änderungen:
+- Kategorie-Kacheln bei allen drei Sendern vollständig entfernt.
+- Kategorie-Inhalte in den laufenden Ticker unter dem Player integriert.
+- Ticker zeigt zusätzlich die aktuellen Programmtitel.
+- Partnerbereich bleibt unterhalb des TV-Bereichs erhalten.
+- Player-, Playlist- und Werbelogik unverändert.

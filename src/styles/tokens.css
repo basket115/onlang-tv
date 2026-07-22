@@ -1,0 +1,18 @@
+/* tokens.css
+   Zentrale CSS-Variablen. Diese Werte sind die neutralen Standardwerte
+   und entsprechen exakt tenant.theme aus public/demo-data/default.json.
+   Später überschreibt der geladene Mandant diese Variablen zur Laufzeit
+   (siehe docs/ARCHITECTURE.md, Abschnitt "Theming").
+   Bewusst noch kein aufwendiges Design — nur die Grundlage. */
+
+:root {
+  --tv-accent: #f28c00;
+  --tv-bg: #080808;
+  --tv-surface: #151515;
+  --tv-text: #ffffff;
+  --tv-muted: #a5a5a5;
+
+  --tv-radius-sm: 8px;
+  --tv-radius-md: 14px;
+  --tv-radius-lg: 22px;
+}

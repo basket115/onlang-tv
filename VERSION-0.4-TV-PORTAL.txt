@@ -1,0 +1,11 @@
+ONLANG TV DEMO – VERSION 0.4 TV-PORTAL
+
+Änderungen bei allen drei Sendern:
+- Hauptplayer nutzt nahezu die gesamte verfügbare Bildschirmbreite.
+- Programmspalte auf eine kompakte TV-Navigation reduziert.
+- Header und Sendestatus kompakter gestaltet.
+- Zusatzinformationen in der Programmliste reduziert.
+- Kategorien und Partner bleiben unter dem TV-Hauptbereich.
+- Keine Änderung an Player-, Playlist- oder Werbelogik.
+
+Start: index.html im Browser öffnen.

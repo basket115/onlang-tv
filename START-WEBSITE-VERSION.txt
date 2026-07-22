@@ -1,0 +1,10 @@
+START DER WEBSITE-VERSION
+=========================
+
+1. Ordner vollständig entpacken.
+2. website-tv.html öffnen.
+3. Für Scorpions TV: website-tv.html?kunde=scorpions-sggierath
+4. Für BBK TV: website-tv.html?kunde=bbk-duesseldorf
+5. Für ONLANG TV: website-tv.html?kunde=default
+
+Die vollständige eigenständige Version bleibt weiterhin über index.html erreichbar.

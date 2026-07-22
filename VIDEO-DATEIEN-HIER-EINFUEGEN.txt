@@ -1,0 +1,16 @@
+ONLANG TV – Martin-Demo
+
+Bitte diese drei vorhandenen Dateien in den Ordner
+public\assets\videos\ kopieren:
+
+video1.mp4
+video2.mp4
+video3.mp4
+
+Der Werbespot ist bereits enthalten.
+Danach index.html?kunde=DEFAULT öffnen.
+
+Ablauf:
+Spot -> Video 1 -> Spot -> Video 2 -> Spot -> Video 3 -> Spot -> Video 1 ...
+
+Autostart erfolgt stumm (Browser-Vorgabe). Ein Klick auf die Seite aktiviert den Ton.

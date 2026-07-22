@@ -1,0 +1,28 @@
+ONLANG TV DEMO 1.0 – STARTANLEITUNG
+====================================
+
+1. Diesen gesamten Ordner auf dem Computer entpacken.
+2. Die Datei index.html per Doppelklick öffnen.
+3. Die Demo startet automatisch und zunächst stumm.
+4. Einmal in die ONLANG-TV-Seite klicken, um den Ton zu aktivieren.
+
+Automatischer Ablauf:
+ONLANG Spot -> Video 1 -> ONLANG Spot -> Video 2 -> ONLANG Spot -> Video 3 -> Wiederholung
+
+Für die Präsentation:
+- Browserfenster maximieren oder Vollbild mit F11 aktivieren.
+- Nicht einzelne Dateien aus der ZIP öffnen; zuerst vollständig entpacken.
+- Alle Video-Dateien im Ordner public/assets/videos belassen.
+
+Geprüfter Stand:
+- Autostart
+- Spot zwischen jedem Video
+- automatische Playlist
+- Endlosschleife
+- JETZT LÄUFT / WERBUNG
+- Statusanzeige
+- Markierung des aktuellen Playlist-Videos
+- lokaler Start ohne npm oder Server
+
+
+NEU: Oben rechts kann ohne Neuladen zwischen BBK TV und Scorpions TV gewechselt werden. Dabei wechseln Logo/Kurzzeichen, Name, Untertitel, Farben, Programm, Kategorien, Partner und Ticker automatisch.

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ONLANG TV – Website-Einbettung</title>
+  <!--
+    Klassische <script>-Tags (kein type="module"), relative Pfade ohne
+    führenden "/": zwingend nötig, damit diese Seite direkt per
+    Doppelklick über file:// funktioniert (siehe docs/ARCHITECTURE.md,
+    Abschnitt "Kein Build-Schritt nötig").
+  -->
+  <link rel="stylesheet" href="src/styles/tokens.css" />
+  <link rel="stylesheet" href="src/styles/base.css" />
+  <link rel="stylesheet" href="src/styles/layout.css" />
+</head>
+<body>
+  <div id="app"></div>
+  <script>window.ONLANG_DEFAULT_VIEW = 'embed';</script>
+
+  <!-- Reihenfolge ist wichtig: -->
+  <!-- 1) Mandanten-Grundlage (Schema vor Validator vor Service) -->
+  <script src="src/tenant/tenant-schema.js"></script>
+  <script src="src/tenant/tenant-validator.js"></script>
+  <script src="src/tenant/tenant-service.js"></script>
+  <script src="src/config/runtime-config.js"></script>
+
+  <!-- 2) Mandanten-Registry (Phase 5): reines fetch() einer .json-Datei
+       funktioniert unter file:// nicht (siehe tenant-service.js) —
+       daher werden alle verfügbaren Demo-Mandanten hier als klassische
+       Scripts geladen, tenant-service.js wählt zur Laufzeit anhand von
+       ?kunde= den passenden aus der Registry aus. Ein neuer Mandant
+       braucht nur eine weitere Zeile hier. -->
+  <script src="public/demo-data/default.js"></script>
+  <script src="public/demo-data/bbk-duesseldorf.js"></script>
+  <script src="public/demo-data/scorpions-sggierath.js"></script>
+
+  <!-- 3) Player-Basis (unverändert seit Schritt 2/3/4) -->
+  <script src="src/player/player-state.js"></script>
+  <script src="src/player/player-events.js"></script>
+  <script src="src/player/player-controller.js"></script>
+  <script src="src/player/player-ui.js"></script>
+
+  <!-- 4) Playlist-Basis (unverändert seit Schritt 4; playlist-data.js
+       wird ab Phase 5 NICHT mehr geladen — die Videoliste kommt jetzt
+       aus dem Tenant-Objekt, siehe main.js) -->
+  <script src="src/playlist/playlist-state.js"></script>
+  <script src="src/playlist/playlist-controller.js"></script>
+  <script src="src/playlist/playlist-ui.js"></script>
+
+  <!-- 5) Werbe-Basis (unverändert seit Schritt 4; advertising-data.js
+       wird ab Phase 5 NICHT mehr geladen — der Spot kommt jetzt aus
+       dem Tenant-Objekt) -->
+  <script src="src/advertising/advertising-state.js"></script>
+  <script src="src/advertising/advertising-controller.js"></script>
+  <script src="src/advertising/advertising-ui.js"></script>
+
+  <!-- 6) Ablaufsteuerung (unverändert seit Schritt 4) -->
+  <script src="src/playback/playback-flow-controller.js"></script>
+
+  <!-- 7) Views (neu in Phase 5: bauen das komplette Layout und binden
+       die obigen, unveränderten Module ein) -->
+  <script src="src/views/view-helpers.js"></script>
+  <script src="src/views/full-view.js"></script>
+  <script src="src/views/embed-view.js"></script>
+
+  <!-- 8) Verdrahtung -->
+  <script src="src/main.js"></script>
+</body>
+</html>

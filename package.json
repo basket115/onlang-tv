@@ -1,0 +1,10 @@
+{
+  "name": "onlang-tv",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ONLANG TV — mandantenfähiges Videoportal-Modul für Vereine, Basketballkreise, Landesverbände und andere Sportorganisationen. Läuft ab Schritt 2 vollständig ohne Build-Schritt direkt über file://.",
+  "scripts": {
+    "test": "node tests/tenant-validator.test.js && node tests/smoke.test.js"
+  }
+}

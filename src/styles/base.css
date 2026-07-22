@@ -1,0 +1,25 @@
+/* base.css
+   Minimaler Reset und Grundtypografie. Bewusst schlicht gehalten —
+   das eigentliche Design entsteht in einer späteren Roadmap-Phase. */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--tv-bg);
+  color: var(--tv-text);
+  font-family: -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.accent {
+  color: var(--tv-accent);
+}

@@ -1,0 +1,2181 @@
+/* layout.css
+   Layout für die ONLANG-TV-Oberfläche (Player, Playlist, Kategorien,
+   Partner) sowie die eingebetteten Kernkomponenten .player/.playlist/
+   .now-playing (unverändert seit Schritt 2-4, nur ihre äußere
+   Einbettung wird hier gesteuert).
+
+   WICHTIG (Bugfix nach Phase-5-Rückmeldung): Frühere Regeln aus
+   Schritt 2/3 gingen von einer einzelnen, schmalen 480px-Karte als
+   GESAMTER Seite aus (#app { max-width: 480px } sowie .player mit
+   eigenem max-width: 480px). Seit Phase 5 ist .player/.playlist nur
+   noch EIN Baustein innerhalb der breiten .tv-app-Oberfläche — die
+   alten Breitenbegrenzungen wurden hier vollständig entfernt bzw.
+   für den neuen Kontext (.tv-player-col .player usw.) explizit
+   aufgehoben. Keine absolute Positionierung bei Player/Playlist/
+   Kategorien/Partnern — nur die kontextgebundene "Video nicht
+   gefunden"-Meldung (.player-video-message) ist bewusst absolut
+   positioniert, relativ zu ihrem eigenen .player-window-Container,
+   und beeinflusst kein anderes Element. */
+
+body {
+  margin: 0;
+  padding: 20px;
+}
+
+/* ==========================================================================
+   GESAMTLAYOUT (.tv-app) — Full- und Embed-Ansicht
+   ========================================================================== */
+
+.tv-app {
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 20px;
+  box-sizing: border-box;
+  background: var(--tv-bg);
+}
+
+*, *::before, *::after {
+  box-sizing: inherit;
+}
+
+/* --- Header --- */
+
+.tv-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  margin-bottom: 20px;
+  background: var(--tv-surface);
+  border-radius: var(--tv-radius-lg);
+  border: 1px solid rgba(128, 128, 128, 0.18);
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.tv-header-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.tv-logo {
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: rgba(128, 128, 128, 0.14);
+  border: 1px solid rgba(128, 128, 128, 0.24);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tv-logo-text {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: var(--tv-accent);
+}
+
+.tv-logo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  border-radius: 50%;
+  padding: 3px;
+  background: #ffffff;
+  display: block;
+}
+
+.tv-header-switcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.tv-switcher-label {
+  font-size: 11px;
+  color: var(--tv-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tv-tenant-switcher {
+  padding: 7px 10px;
+  background: var(--tv-bg);
+  color: var(--tv-text);
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  border-radius: var(--tv-radius-sm);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.tv-tenant-switcher:focus-visible {
+  outline: 2px solid var(--tv-accent);
+  outline-offset: 2px;
+}
+
+.tv-brand-text { min-width: 0; }
+
+.tv-name {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: var(--tv-text);
+}
+
+.tv-tagline {
+  margin: 3px 0 0;
+  font-size: 12.5px;
+  color: var(--tv-muted);
+}
+
+/* Embed-Variante: deutlich kompakter */
+.tv-header--compact {
+  padding: 10px 16px;
+  margin-bottom: 12px;
+}
+
+.tv-logo--small { width: 34px; height: 34px; }
+.tv-name--small { font-size: 16px; }
+
+/* --- Hauptbereich: Player-Spalte (links, flexibel) + Playlist-Spalte
+       (rechts, feste Breite) — sauberes CSS-Grid, keine absolute
+       Positionierung. --- */
+
+.tv-main {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 24px;
+  align-items: start;
+  width: 100%;
+}
+
+.tv-main--embed {
+  grid-template-columns: 1fr 340px;
+}
+
+@media (max-width: 900px) {
+  .tv-main,
+  .tv-main--embed {
+    grid-template-columns: 1fr;
+  }
+}
+
+.tv-player-col {
+  min-width: 0;
+  width: 100%;
+}
+
+.tv-playlist-col {
+  min-width: 0;
+  width: 100%;
+}
+
+/* --- "Präsentiert von"-Sponsorenleiste --- */
+
+.tv-presenter-bar {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 16px;
+  margin-bottom: 10px;
+  background: var(--tv-surface);
+  border-radius: var(--tv-radius-md);
+  border: 1px solid rgba(128, 128, 128, 0.18);
+  font-size: 12.5px;
+}
+
+.tv-presenter-bar[hidden] { display: none; }
+
+.tv-presenter-label { color: var(--tv-muted); }
+
+.tv-presenter-name {
+  font-weight: 800;
+  color: var(--tv-accent);
+}
+
+/* --- Kategorie-Leiste --- */
+
+.tv-categories { margin-top: 20px; }
+
+.tv-section-title {
+  margin: 0 0 12px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tv-muted);
+}
+
+.tv-category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+  margin-top: 30px;
+}
+
+.tv-category-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  background: var(--tv-surface);
+  border-radius: var(--tv-radius-md);
+  border: 1px solid rgba(128, 128, 128, 0.18);
+}
+
+.tv-category-icon { font-size: 20px; }
+
+.tv-category-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--tv-text);
+}
+
+.tv-category-desc {
+  font-size: 11.5px;
+  color: var(--tv-muted);
+}
+
+/* --- Partner-Leiste: horizontale Flex-Reihe --- */
+
+.tv-partners { margin-top: 24px; }
+
+.tv-partner-row {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.tv-partner-card {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--tv-surface);
+  border-radius: var(--tv-radius-md);
+  border: 1px solid rgba(128, 128, 128, 0.18);
+  white-space: nowrap;
+}
+
+.tv-partner-logo {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-weight: 800;
+  font-size: 13px;
+  background: var(--tv-accent);
+  color: var(--tv-background, #fff);
+}
+
+.tv-partner-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tv-partner-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--tv-text);
+  display: block;
+}
+
+.tv-partner-subtitle {
+  font-size: 11px;
+  color: var(--tv-muted);
+  display: block;
+}
+
+/* ==========================================================================
+   PLAYER-KARTE (.player) — Kernkomponente aus Schritt 2, unverändert in
+   ihrer inneren Struktur. Füllt jetzt IMMER die Breite ihrer
+   Grid-Spalte (.tv-player-col) — keine eigene max-width mehr.
+   ========================================================================== */
+
+.player {
+  width: 100%;
+  padding: 20px;
+  background: var(--tv-surface);
+  border-radius: var(--tv-radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-sizing: border-box;
+}
+
+.player-rule {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 16px 0;
+}
+
+/* Sauberes 16:9-Verhältnis, volle Breite der Player-Karte. */
+.player-window {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border-radius: var(--tv-radius-sm);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.player-video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: #000;
+}
+
+/* Bewusst einzige absolute Positionierung im gesamten Layout: die
+   "Video nicht gefunden"-Meldung liegt über dem Video, relativ zu
+   ihrem eigenen .player-window — beeinflusst kein anderes Element. */
+.player-video-message {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 16px;
+  font-size: 14px;
+  color: var(--tv-muted);
+  background: #000;
+}
+
+.player-video-message[hidden] {
+  display: none;
+}
+
+.player-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.player-label {
+  color: var(--tv-muted);
+}
+
+.player-status,
+.player-time {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Buttons: immer horizontal nebeneinander, nie hochkant gequetscht. */
+.player-controls {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 10px;
+  width: 100%;
+}
+
+.player-btn {
+  flex: 1 1 0;
+  padding: 10px 14px;
+  background: transparent;
+  border: 1px solid var(--tv-accent);
+  color: var(--tv-text);
+  border-radius: var(--tv-radius-sm);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.player-btn:hover {
+  background: rgba(242, 140, 0, 0.12);
+}
+
+.player-btn:active {
+  background: rgba(242, 140, 0, 0.22);
+}
+
+/* Zusätzliche Modus-/Ablauf-Zeilen innerhalb der Playeransicht (Schritt 4) */
+.player-row-flow strong {
+  font-variant-numeric: normal;
+  font-size: 13px;
+}
+
+.player-row-flow[hidden] {
+  display: none;
+}
+
+/* ==========================================================================
+   PLAYLIST-KARTE (.playlist) — Kernkomponente aus Schritt 3,
+   unverändert in ihrer inneren Struktur. Füllt jetzt IMMER die Breite
+   ihrer Grid-Spalte (.tv-playlist-col) — keine eigene max-width mehr.
+   ========================================================================== */
+
+.playlist {
+  width: 100%;
+  padding: 20px;
+  background: var(--tv-surface);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--tv-radius-lg);
+  box-sizing: border-box;
+}
+
+.playlist-title {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tv-muted);
+}
+
+.playlist-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.playlist-item {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--tv-radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.playlist-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.playlist-item:focus-visible {
+  outline: 2px solid var(--tv-accent);
+  outline-offset: 2px;
+}
+
+.playlist-item.active {
+  border-color: var(--tv-accent);
+  background: rgba(242, 140, 0, 0.1);
+}
+
+.playlist-item.error {
+  border-color: #c0392b;
+  background: rgba(192, 57, 43, 0.12);
+}
+
+.playlist-item-number {
+  color: var(--tv-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.playlist-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.playlist-item-title {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.playlist-item-meta {
+  font-size: 12px;
+  color: var(--tv-muted);
+}
+
+.playlist-message {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--tv-muted);
+}
+
+.playlist-message[hidden] {
+  display: none;
+}
+
+/* ==========================================================================
+   WERBUNG / "JETZT LÄUFT" (Schritt 4) — unverändert, nur volle Breite
+   ihrer Spalte statt fester max-width.
+   ========================================================================== */
+
+#now-playing-container {
+  margin-bottom: 10px;
+  width: 100%;
+}
+
+.now-playing {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 62px;
+  padding: 12px 16px;
+  border-radius: var(--tv-radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background:
+    linear-gradient(90deg, rgba(242, 140, 0, 0.08), transparent 42%),
+    var(--tv-surface);
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.now-playing::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 3px;
+  background: var(--tv-accent);
+  opacity: 0.9;
+}
+
+.now-playing[hidden] {
+  display: none;
+}
+
+.now-playing-signal {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  flex: 0 0 auto;
+}
+
+.now-playing-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ff3b30;
+  box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.55);
+  animation: onlang-live-pulse 1.7s ease-out infinite;
+}
+
+.now-playing-ad .now-playing-dot {
+  background: var(--tv-accent);
+  box-shadow: 0 0 0 0 rgba(242, 140, 0, 0.5);
+}
+
+.now-playing-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.now-playing-tag {
+  width: fit-content;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--tv-accent);
+}
+
+.now-playing-ad .now-playing-tag {
+  color: var(--tv-accent);
+}
+
+.now-playing-content .now-playing-tag {
+  color: var(--tv-accent);
+}
+
+.now-playing-title {
+  font-size: 15px;
+  line-height: 1.25;
+  font-weight: 700;
+  color: var(--tv-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes onlang-live-pulse {
+  0% { box-shadow: 0 0 0 0 currentColor; }
+  65% { box-shadow: 0 0 0 8px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .now-playing-dot { animation: none; }
+}
+
+
+/* ONLANG TV Demo 1.0 – Präsentationsansicht
+   Technische Diagnose und manuelle Playersteuerung bleiben im Code erhalten,
+   werden in der vorführbaren Oberfläche aber nicht angezeigt. */
+.player > .player-row,
+.player > .player-rule,
+.player > .player-controls {
+  display: none;
+}
+
+.player {
+  padding-bottom: 18px;
+}
+
+
+/* Präsentationsoptimierung: klarere Playlist und sichtbarer Live-Status */
+.playlist-title {
+  color: var(--tv-text);
+  font-size: 14px;
+}
+
+.playlist-item {
+  align-items: flex-start;
+  padding: 12px;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.playlist-item.active {
+  box-shadow: inset 3px 0 0 var(--tv-accent);
+}
+
+.playlist-item.active .playlist-item-number,
+.playlist-item.active .playlist-item-title {
+  color: var(--tv-text);
+}
+
+.playlist-item-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.playlist-item-title {
+  line-height: 1.25;
+}
+
+.playlist-item-live {
+  display: none;
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--tv-accent);
+  color: #111;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.playlist-item.active .playlist-item-live {
+  display: inline-flex;
+}
+
+.playlist-item-meta {
+  margin-top: 2px;
+  letter-spacing: 0.01em;
+}
+
+
+/* Präsentationsoptimierung: Programmcharakter der rechten Spalte */
+.playlist-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.playlist-header .playlist-title {
+  margin-bottom: 4px;
+}
+
+.playlist-subtitle {
+  margin: 0;
+  color: var(--tv-muted);
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
+.playlist-auto-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: 46px;
+  padding: 5px 8px;
+  border: 1px solid rgba(242, 140, 0, 0.48);
+  border-radius: 999px;
+  background: rgba(242, 140, 0, 0.10);
+  color: var(--tv-accent);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+
+/* Demo 1.0 – automatische Programmfolge: Jetzt läuft / Als Nächstes */
+.now-playing {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(250px, 0.72fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
+.now-playing-current {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.now-playing-upcoming {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 7px;
+  min-width: 0;
+  padding-left: 18px;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.now-playing-upcoming[hidden],
+.upcoming-after[hidden] {
+  display: none;
+}
+
+.upcoming-primary {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.upcoming-icon {
+  color: var(--tv-accent);
+  font-size: 12px;
+  flex: 0 0 auto;
+}
+
+.upcoming-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.upcoming-tag,
+.upcoming-after-tag {
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--tv-accent);
+}
+
+.upcoming-title,
+.upcoming-after-title {
+  color: var(--tv-text);
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upcoming-after {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 0;
+  padding-left: 21px;
+}
+
+.upcoming-after-tag {
+  color: var(--tv-muted);
+  flex: 0 0 auto;
+}
+
+.upcoming-after-title {
+  color: var(--tv-muted);
+  font-size: 11.5px;
+}
+
+@media (max-width: 700px) {
+  .now-playing {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .now-playing-upcoming {
+    padding: 11px 0 0;
+    border-left: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+  }
+}
+
+/* --- Premium-Sendestatus im BBK-TV-Header (Demo 1.0) --- */
+.tv-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 18px;
+  margin-left: auto;
+}
+
+.tv-broadcast-panel {
+  min-width: 305px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(20, 24, 34, 0.96), rgba(8, 11, 17, 0.96));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  color: #ffffff;
+}
+
+.tv-broadcast-topline,
+.tv-broadcast-datetime,
+.tv-broadcast-operation {
+  display: flex;
+  align-items: center;
+}
+
+.tv-broadcast-topline {
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 7px;
+}
+
+.tv-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: #d71920;
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.tv-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7);
+  animation: bbk-live-pulse 1.7s infinite;
+}
+
+.tv-broadcast-channel {
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+}
+
+.tv-broadcast-datetime {
+  justify-content: space-between;
+  gap: 14px;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 11.5px;
+  text-transform: capitalize;
+}
+
+.tv-broadcast-time {
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.tv-broadcast-operation {
+  gap: 7px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.tv-operation-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: #38c172;
+  box-shadow: 0 0 8px rgba(56, 193, 114, 0.8);
+}
+
+@keyframes bbk-live-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7); }
+  70% { box-shadow: 0 0 0 7px rgba(255, 255, 255, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+}
+
+@media (max-width: 980px) {
+  .tv-header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .tv-broadcast-panel { min-width: 280px; }
+}
+
+@media (max-width: 640px) {
+  .tv-header-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .tv-broadcast-panel { min-width: 0; width: 100%; }
+  .tv-header-switcher { justify-content: flex-end; }
+  .tv-broadcast-datetime { align-items: flex-start; flex-direction: column; gap: 3px; }
+}
+
+/* --- TV-Infobalken unter dem Player (Demo 1.0) --- */
+.tv-info-ticker {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  min-height: 42px;
+  margin-top: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: linear-gradient(90deg, rgba(8, 11, 17, 0.98), rgba(20, 24, 34, 0.96));
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.16);
+  color: #ffffff;
+}
+
+.tv-info-ticker-label {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  background: var(--tv-accent);
+  color: #111318;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  z-index: 1;
+}
+
+.tv-info-ticker-window {
+  min-width: 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 3%, #000 97%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 3%, #000 97%, transparent 100%);
+}
+
+.tv-info-ticker-track {
+  display: flex;
+  width: max-content;
+  align-items: center;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+  animation: bbk-info-ticker 34s linear infinite;
+  will-change: transform;
+}
+
+.tv-info-ticker-group {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 22px;
+  padding-right: 22px;
+}
+
+.tv-info-ticker-track strong {
+  color: var(--tv-accent);
+  font-weight: 900;
+}
+
+.tv-info-ticker-group > span[aria-hidden="true"] {
+  color: var(--tv-accent);
+  font-weight: 900;
+}
+
+
+@keyframes bbk-info-ticker {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+
+@media (max-width: 640px) {
+  .tv-info-ticker { grid-template-columns: 1fr; }
+  .tv-info-ticker-label {
+    min-height: 28px;
+    justify-content: center;
+    padding: 0 12px;
+  }
+  .tv-info-ticker-track { font-size: 11px; }
+}
+
+/* --- Professioneller Player-Rahmen (Demo 1.0) ---
+   Rein visuelle Veredelung; Player-Logik und automatischer Ablauf bleiben unverändert. */
+.player {
+  position: relative;
+  overflow: hidden;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(242, 140, 0, 0.09), transparent 28%),
+    linear-gradient(145deg, rgba(26, 28, 34, 0.98), rgba(12, 13, 17, 0.98));
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.38),
+    0 8px 20px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.player::before {
+  content: '';
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: 34px;
+  right: 34px;
+  height: 3px;
+  border-radius: 0 0 999px 999px;
+  background: linear-gradient(90deg, transparent, var(--tv-accent) 18%, var(--tv-accent) 82%, transparent);
+  box-shadow: 0 0 18px rgba(242, 140, 0, 0.42);
+  pointer-events: none;
+}
+
+.player-window {
+  isolation: isolate;
+  border-radius: 13px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.52),
+    0 0 0 5px rgba(0, 0, 0, 0.18),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.player-window::before {
+  content: '';
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 14%),
+    linear-gradient(90deg, rgba(242, 140, 0, 0.10), transparent 8%, transparent 92%, rgba(242, 140, 0, 0.07));
+  box-shadow: inset 0 0 34px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+}
+
+.player-video {
+  position: relative;
+  z-index: 1;
+  object-fit: contain;
+}
+
+@media (max-width: 640px) {
+  .player { padding: 11px; }
+  .player::before { left: 22px; right: 22px; }
+  .player-window { border-radius: 10px; }
+}
+
+/* ========================================================================
+   SCORPIONS TV – helles Rot-Weiß-Premiumdesign nach freigegebener Vorlage
+   Nur aktiv für den Mandanten scorpions-sggierath. BBK bleibt unverändert.
+   ======================================================================== */
+body.tenant-scorpions-sggierath {
+  --tv-accent: #d71920;
+  --tv-bg: #f4f4f4;
+  --tv-surface: #ffffff;
+  --tv-text: #171717;
+  --tv-muted: #626262;
+  background: #eeeeee;
+}
+
+body.tenant-scorpions-sggierath .tv-app {
+  background: #f7f7f7;
+  border: 1px solid #e5e5e5;
+  border-radius: 22px;
+  box-shadow: 0 18px 55px rgba(0,0,0,.08);
+}
+
+body.tenant-scorpions-sggierath .tv-header,
+body.tenant-scorpions-sggierath .tv-presenter-bar,
+body.tenant-scorpions-sggierath .playlist,
+body.tenant-scorpions-sggierath .tv-category-card,
+body.tenant-scorpions-sggierath .tv-partner-card {
+  background: #fff;
+  border-color: #e4e4e4;
+  box-shadow: 0 5px 18px rgba(0,0,0,.045);
+}
+
+body.tenant-scorpions-sggierath .tv-header {
+  border-top: 5px solid #d71920;
+  padding: 22px 26px;
+}
+
+body.tenant-scorpions-sggierath .tv-logo {
+  width: 70px;
+  height: 70px;
+  background: #fff;
+  border: 3px solid #d71920;
+  box-shadow: 0 4px 14px rgba(215,25,32,.18);
+}
+
+body.tenant-scorpions-sggierath .tv-logo-image {
+  padding: 0;
+  border-radius: 50%;
+}
+
+body.tenant-scorpions-sggierath .tv-name {
+  color: #c91017;
+  font-size: 30px;
+  letter-spacing: .015em;
+  text-transform: uppercase;
+}
+
+body.tenant-scorpions-sggierath .tv-tagline { color: #555; }
+
+body.tenant-scorpions-sggierath .tv-header-actions {
+  align-items: center;
+}
+
+body.tenant-scorpions-sggierath .tv-broadcast-panel {
+  background: #fff;
+  color: #171717;
+  border: 1px solid #e3e3e3;
+  box-shadow: 0 7px 22px rgba(0,0,0,.06);
+}
+
+body.tenant-scorpions-sggierath .tv-broadcast-datetime,
+body.tenant-scorpions-sggierath .tv-broadcast-operation {
+  color: #555;
+}
+body.tenant-scorpions-sggierath .tv-broadcast-time,
+body.tenant-scorpions-sggierath .tv-broadcast-channel { color: #171717; }
+body.tenant-scorpions-sggierath .tv-broadcast-operation { border-top-color: #e8e8e8; }
+
+body.tenant-scorpions-sggierath .tv-tenant-switcher {
+  background: #d71920;
+  border-color: #d71920;
+  color: #fff;
+  font-weight: 800;
+  padding: 10px 14px;
+}
+
+body.tenant-scorpions-sggierath .tv-presenter-name { color: #d71920; }
+
+body.tenant-scorpions-sggierath .now-playing {
+  background: #fff;
+  border: 1px solid #e3e3e3;
+  box-shadow: 0 6px 18px rgba(0,0,0,.05);
+}
+body.tenant-scorpions-sggierath .now-playing-signal {
+  background: #fff5f5;
+  border-color: #ffd1d3;
+}
+body.tenant-scorpions-sggierath .now-playing-upcoming {
+  border-left-color: #e4e4e4;
+}
+
+body.tenant-scorpions-sggierath .player {
+  background: #fff;
+  border: 1px solid #e3e3e3;
+  box-shadow: 0 14px 38px rgba(0,0,0,.11);
+}
+body.tenant-scorpions-sggierath .player::before {
+  background: linear-gradient(90deg, transparent, #d71920 18%, #d71920 82%, transparent);
+  box-shadow: 0 0 18px rgba(215,25,32,.28);
+}
+body.tenant-scorpions-sggierath .player-window {
+  border-color: #ddd;
+  box-shadow: 0 12px 28px rgba(0,0,0,.18), 0 0 0 5px rgba(215,25,32,.055);
+}
+body.tenant-scorpions-sggierath .player-window::before {
+  background: linear-gradient(90deg, rgba(215,25,32,.08), transparent 8%, transparent 92%, rgba(215,25,32,.06));
+}
+
+body.tenant-scorpions-sggierath .playlist-title,
+body.tenant-scorpions-sggierath .tv-section-title { color: #171717; }
+body.tenant-scorpions-sggierath .playlist-auto-badge {
+  border-color: #d71920;
+  background: #fff;
+  color: #d71920;
+}
+body.tenant-scorpions-sggierath .playlist-item:hover { background: #fff5f5; }
+body.tenant-scorpions-sggierath .playlist-item.active {
+  background: #fff7f7;
+  border-color: #d71920;
+  box-shadow: inset 4px 0 0 #d71920;
+}
+body.tenant-scorpions-sggierath .playlist-item-live {
+  color: #fff;
+  background: #d71920;
+}
+
+body.tenant-scorpions-sggierath .tv-info-ticker {
+  background: #fff;
+  border-color: #dedede;
+  color: #202020;
+  box-shadow: 0 6px 16px rgba(0,0,0,.06);
+}
+body.tenant-scorpions-sggierath .tv-info-ticker-label {
+  background: #d71920;
+  color: #fff;
+}
+body.tenant-scorpions-sggierath .tv-info-ticker-window {
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 3%, #000 97%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 3%, #000 97%, transparent 100%);
+}
+body.tenant-scorpions-sggierath .tv-info-ticker-track strong,
+body.tenant-scorpions-sggierath .tv-info-ticker-group > span[aria-hidden="true"] { color: #d71920; }
+
+body.tenant-scorpions-sggierath .tv-category-grid {
+  grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+}
+body.tenant-scorpions-sggierath .tv-category-card {
+  min-height: 108px;
+  border-top: 3px solid #d71920;
+  padding: 16px;
+}
+body.tenant-scorpions-sggierath .tv-category-icon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff1f1;
+  color: #d71920;
+}
+body.tenant-scorpions-sggierath .tv-category-label,
+body.tenant-scorpions-sggierath .tv-partner-name { color: #171717; }
+
+body.tenant-scorpions-sggierath .tv-partner-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  overflow: visible;
+}
+body.tenant-scorpions-sggierath .tv-partner-card {
+  width: 100%;
+  min-height: 72px;
+}
+body.tenant-scorpions-sggierath .tv-partner-logo {
+  background: #fff;
+  color: #d71920;
+  border: 1px solid #eee;
+}
+
+@media (max-width: 900px) {
+  body.tenant-scorpions-sggierath .tv-name { font-size: 24px; }
+  body.tenant-scorpions-sggierath .tv-logo { width: 58px; height: 58px; }
+}
+
+/* ========================================================================
+   SCORPIONS TV – dunkles Rot-Weiß-Basketballportal nach Referenzdesign
+   ONLANG TV und BBK TV bleiben vollständig unverändert.
+   ======================================================================== */
+body.tenant-scorpions-sggierath {
+  --tv-accent: #d71920;
+  --tv-bg: #05070b;
+  --tv-surface: #10131a;
+  --tv-text: #ffffff;
+  --tv-muted: #b9bec8;
+  background:
+    radial-gradient(circle at 88% 5%, rgba(215,25,32,.20), transparent 23%),
+    radial-gradient(circle at 12% 0%, rgba(35,48,73,.35), transparent 30%),
+    #05070b;
+  color: #fff;
+}
+
+body.tenant-scorpions-sggierath .tv-app {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+body.tenant-scorpions-sggierath .tv-header {
+  position: relative;
+  overflow: hidden;
+  min-height: 168px;
+  padding: 28px 30px 24px;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(6,9,17,.72), rgba(5,7,11,.96)),
+    radial-gradient(circle at 93% 45%, rgba(215,25,32,.28), transparent 23%),
+    linear-gradient(115deg, #101827 0%, #070a10 56%, #150609 100%);
+  box-shadow: 0 22px 55px rgba(0,0,0,.34);
+}
+
+body.tenant-scorpions-sggierath .tv-header::after {
+  content: '';
+  position: absolute;
+  left: -4%;
+  right: -4%;
+  bottom: 20px;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #d71920 20%, #d71920 75%, transparent);
+  transform: rotate(-1.8deg);
+  box-shadow: 0 0 16px rgba(215,25,32,.5);
+}
+
+body.tenant-scorpions-sggierath .tv-header-brand,
+body.tenant-scorpions-sggierath .tv-header-actions { position: relative; z-index: 2; }
+
+body.tenant-scorpions-sggierath .tv-logo {
+  width: 112px;
+  height: 112px;
+  flex: 0 0 112px;
+  padding: 5px;
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px #d71920, 0 12px 32px rgba(0,0,0,.5);
+}
+body.tenant-scorpions-sggierath .tv-logo-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  object-position: center;
+  border-radius: 50%;
+  padding: 0;
+}
+body.tenant-scorpions-sggierath .tv-name {
+  color: #fff;
+  font-size: clamp(34px, 4vw, 56px);
+  line-height: .98;
+  letter-spacing: -.02em;
+  text-transform: none;
+}
+body.tenant-scorpions-sggierath .tv-name::first-letter { color: inherit; }
+body.tenant-scorpions-sggierath .tv-brand-text { position: relative; }
+body.tenant-scorpions-sggierath .tv-tagline { color: #f3f4f6; font-size: 17px; }
+
+body.tenant-scorpions-sggierath .tv-broadcast-panel {
+  min-width: 410px;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.22);
+  background: rgba(8,11,18,.78);
+  box-shadow: 0 12px 30px rgba(0,0,0,.3);
+  backdrop-filter: blur(8px);
+}
+body.tenant-scorpions-sggierath .tv-broadcast-channel,
+body.tenant-scorpions-sggierath .tv-broadcast-time { color: #fff; }
+body.tenant-scorpions-sggierath .tv-broadcast-date,
+body.tenant-scorpions-sggierath .tv-broadcast-operation { color: #eceff4; }
+body.tenant-scorpions-sggierath .tv-broadcast-operation { border-top-color: rgba(255,255,255,.15); }
+body.tenant-scorpions-sggierath .tv-live-badge { background: #e11d2e; }
+
+body.tenant-scorpions-sggierath .tv-tenant-switcher {
+  min-width: 155px;
+  border: 1px solid rgba(255,255,255,.55);
+  background: rgba(15,8,10,.88);
+  color: #fff;
+  font-weight: 800;
+  box-shadow: inset 0 0 0 1px rgba(215,25,32,.28);
+}
+body.tenant-scorpions-sggierath .tv-switcher-label { color: #fff; }
+
+body.tenant-scorpions-sggierath .tv-main { align-items: start; }
+body.tenant-scorpions-sggierath .tv-presenter-bar,
+body.tenant-scorpions-sggierath .now-playing,
+body.tenant-scorpions-sggierath .playlist {
+  border: 1px solid #ececec;
+  background: #fff;
+  color: #15171b;
+  box-shadow: 0 12px 28px rgba(0,0,0,.18);
+}
+body.tenant-scorpions-sggierath .tv-presenter-name { color: #d71920; }
+body.tenant-scorpions-sggierath .now-playing-signal { background: #fff; border-color: #f0d0d2; }
+body.tenant-scorpions-sggierath .now-playing-upcoming { border-left-color: #e3e3e3; }
+body.tenant-scorpions-sggierath .now-playing-title,
+body.tenant-scorpions-sggierath .now-playing-upcoming-title { color: #14171b; }
+
+body.tenant-scorpions-sggierath .player {
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 18px;
+  background: #07090d;
+  box-shadow: 0 24px 65px rgba(0,0,0,.48);
+}
+body.tenant-scorpions-sggierath .player::before { display: none; }
+body.tenant-scorpions-sggierath .player-window {
+  border: 0;
+  border-radius: 16px;
+  box-shadow: none;
+}
+body.tenant-scorpions-sggierath .player-window::before {
+  background: linear-gradient(180deg, rgba(255,255,255,.025), transparent 18%);
+}
+
+body.tenant-scorpions-sggierath .playlist { border-radius: 22px; padding: 22px; }
+body.tenant-scorpions-sggierath .playlist-title,
+body.tenant-scorpions-sggierath .playlist-subtitle { color: #16181d; }
+body.tenant-scorpions-sggierath .playlist-auto-badge {
+  border-color: #d71920;
+  background: #fff;
+  color: #d71920;
+}
+body.tenant-scorpions-sggierath .playlist-item {
+  margin-bottom: 10px;
+  border: 1px solid #ececec;
+  border-radius: 14px;
+  background: #fafafa;
+  color: #17191d;
+  box-shadow: 0 5px 14px rgba(0,0,0,.06);
+}
+body.tenant-scorpions-sggierath .playlist-item:hover { background: #fff5f5; }
+body.tenant-scorpions-sggierath .playlist-item.active {
+  border-color: #d71920;
+  background: #fff;
+  box-shadow: inset 5px 0 0 #d71920, 0 7px 16px rgba(215,25,32,.12);
+}
+body.tenant-scorpions-sggierath .playlist-item-title { color: #15171b; }
+body.tenant-scorpions-sggierath .playlist-item-meta { color: #59606c; }
+body.tenant-scorpions-sggierath .playlist-item-live { color: #fff; background: #d71920; }
+
+body.tenant-scorpions-sggierath .tv-info-ticker {
+  border: 1px solid rgba(255,255,255,.22);
+  background: #fff;
+  color: #202226;
+  box-shadow: 0 12px 28px rgba(0,0,0,.2);
+}
+body.tenant-scorpions-sggierath .tv-info-ticker-label { background: #d71920; color: #fff; }
+body.tenant-scorpions-sggierath .tv-info-ticker-track strong,
+body.tenant-scorpions-sggierath .tv-info-ticker-group > span[aria-hidden="true"] { color: #d71920; }
+
+body.tenant-scorpions-sggierath .tv-section-title { color: #fff; font-size: 17px; }
+body.tenant-scorpions-sggierath .tv-category-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+body.tenant-scorpions-sggierath .tv-category-card,
+body.tenant-scorpions-sggierath .tv-partner-card {
+  border: 1px solid #e8e8e8;
+  background: #fff;
+  color: #17191d;
+  box-shadow: 0 8px 20px rgba(0,0,0,.15);
+}
+body.tenant-scorpions-sggierath .tv-category-card {
+  min-height: 92px;
+  grid-template-columns: 50px 1fr;
+  align-items: center;
+  padding: 16px;
+}
+body.tenant-scorpions-sggierath .tv-category-icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #d71920;
+  color: #fff;
+  font-size: 22px;
+}
+body.tenant-scorpions-sggierath .tv-category-label,
+body.tenant-scorpions-sggierath .tv-partner-name { color: #15171b; }
+body.tenant-scorpions-sggierath .tv-category-desc,
+body.tenant-scorpions-sggierath .tv-partner-subtitle { color: #666b75; }
+
+body.tenant-scorpions-sggierath .tv-partner-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0,1fr));
+  gap: 14px;
+  overflow: visible;
+}
+body.tenant-scorpions-sggierath .tv-partner-card { width: auto; min-height: 86px; }
+body.tenant-scorpions-sggierath .tv-partner-logo {
+  background: #fff;
+  border: 1px solid #ececec;
+  color: #d71920;
+}
+
+@media (max-width: 980px) {
+  body.tenant-scorpions-sggierath .tv-header { min-height: auto; }
+  body.tenant-scorpions-sggierath .tv-broadcast-panel { min-width: 0; width: 100%; }
+  body.tenant-scorpions-sggierath .tv-category-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  body.tenant-scorpions-sggierath .tv-partner-row { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 640px) {
+  body.tenant-scorpions-sggierath .tv-logo { width: 70px; height: 70px; flex-basis: 70px; }
+  body.tenant-scorpions-sggierath .tv-name { font-size: 34px; }
+  body.tenant-scorpions-sggierath .tv-category-grid,
+  body.tenant-scorpions-sggierath .tv-partner-row { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 900px) {
+  body.tenant-scorpions-sggierath .tv-logo { width: 84px; height: 84px; flex-basis: 84px; }
+}
+
+/* ========================================================================== 
+   ONLANG TV Demo 1.0 – Scorpions Programm-Politur
+   Ausschließlich für Scorpions TV. ONLANG TV und BBK TV bleiben unverändert.
+   ========================================================================== */
+body.tenant-scorpions-sggierath .playlist {
+  padding: 24px;
+  min-height: 100%;
+}
+
+body.tenant-scorpions-sggierath .playlist-header {
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #eceef1;
+}
+
+body.tenant-scorpions-sggierath .playlist-title {
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: .045em;
+}
+
+body.tenant-scorpions-sggierath .playlist-subtitle {
+  margin-top: 7px;
+  color: #5d626b;
+  font-size: 12px;
+}
+
+body.tenant-scorpions-sggierath .playlist-list {
+  gap: 12px;
+}
+
+body.tenant-scorpions-sggierath .playlist-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 76px;
+  margin: 0;
+  padding: 14px 14px 14px 12px;
+  overflow: hidden;
+}
+
+body.tenant-scorpions-sggierath .playlist-item-number {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #f0f1f3;
+  color: #545a64;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+body.tenant-scorpions-sggierath .playlist-item-body {
+  width: 100%;
+  min-width: 0;
+  gap: 7px;
+}
+
+body.tenant-scorpions-sggierath .playlist-item-heading {
+  width: 100%;
+  min-width: 0;
+}
+
+body.tenant-scorpions-sggierath .playlist-item-title {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: #17191d;
+  font-size: 14px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.tenant-scorpions-sggierath .playlist-item-meta {
+  color: #676d77;
+  font-size: 11.5px;
+}
+
+body.tenant-scorpions-sggierath .playlist-item.active {
+  min-height: 88px;
+  padding-left: 14px;
+  border: 2px solid #d71920;
+  background: linear-gradient(90deg, #fff7f7 0%, #fff 46%);
+  box-shadow: 0 10px 22px rgba(215,25,32,.12);
+}
+
+body.tenant-scorpions-sggierath .playlist-item.active::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 7px;
+  background: #d71920;
+}
+
+body.tenant-scorpions-sggierath .playlist-item.active .playlist-item-number {
+  background: #d71920;
+  color: #fff;
+}
+
+body.tenant-scorpions-sggierath .playlist-item.active .playlist-item-title {
+  color: #101216;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+body.tenant-scorpions-sggierath .playlist-item-live {
+  padding: 4px 8px;
+  color: #fff;
+  background: #d71920;
+  box-shadow: 0 4px 10px rgba(215,25,32,.22);
+}
+
+@media (max-width: 900px) {
+  body.tenant-scorpions-sggierath .playlist {
+    padding: 20px;
+  }
+  body.tenant-scorpions-sggierath .playlist-item {
+    min-height: 70px;
+  }
+}
+
+/* ========================================================================
+   DEMO 1.0 – VIDEO-FIRST PRÄSENTATIONSLAYOUT
+   Gilt für ONLANG TV, BBK TV und Scorpions TV gleichermaßen.
+   Ziel: Der Hauptbildschirm ist das dominierende Element; Programm,
+   Kategorien und Partner treten visuell zurück. Keine Logikänderung.
+   ======================================================================== */
+@media (min-width: 1101px) {
+  body {
+    padding: 10px;
+  }
+
+  .tv-app {
+    max-width: 1720px;
+    padding: 16px;
+  }
+
+  .tv-header {
+    padding: 14px 20px;
+    margin-bottom: 14px;
+  }
+
+  .tv-main,
+  .tv-main--embed {
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 16px;
+  }
+
+  .tv-presenter-bar {
+    padding: 7px 12px;
+    margin-bottom: 7px;
+  }
+
+  .now-playing {
+    grid-template-columns: minmax(0, 1fr) minmax(210px, 0.46fr);
+    gap: 12px;
+  }
+
+  .now-playing-upcoming {
+    padding-left: 12px;
+  }
+
+  .player {
+    padding: 12px;
+  }
+
+  .playlist {
+    padding: 16px;
+  }
+
+  .playlist-header {
+    margin-bottom: 10px;
+  }
+
+  .playlist-list {
+    gap: 8px;
+  }
+
+  .playlist-item {
+    padding: 10px 11px;
+  }
+
+  .tv-categories {
+    margin-top: 14px;
+  }
+
+  .tv-category-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  .tv-category-card {
+    min-height: 0;
+    padding: 10px 11px;
+    gap: 3px;
+  }
+
+  .tv-category-icon {
+    font-size: 17px;
+  }
+
+  .tv-category-name {
+    font-size: 12px;
+  }
+
+  .tv-category-description {
+    display: none;
+  }
+
+  .tv-partners {
+    margin-top: 16px;
+  }
+
+  .tv-partner-row {
+    gap: 10px;
+  }
+
+  .tv-partner-card {
+    min-height: 70px;
+    padding: 10px 12px;
+  }
+
+  /* Scorpions hatte eigenständige breite Kartenregeln. Auch dort bleibt
+     das Video nun dominant, während die Markenoptik unverändert bleibt. */
+  body.tenant-scorpions-sggierath .tv-main,
+  body.tenant-scorpions-sggierath .tv-main--embed {
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 16px;
+  }
+
+  body.tenant-scorpions-sggierath .tv-category-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  body.tenant-scorpions-sggierath .tv-category-card {
+    min-height: 0;
+    padding: 10px 11px;
+  }
+
+  body.tenant-scorpions-sggierath .tv-partner-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1450px) {
+  .tv-main,
+  .tv-main--embed,
+  body.tenant-scorpions-sggierath .tv-main,
+  body.tenant-scorpions-sggierath .tv-main--embed {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+}
+
+/* ========================================================================
+   VERSION 0.4 – MAXIMALER TV-HAUPTBILDSCHIRM
+   Für alle drei Sender. Der Videoplayer dominiert die erste Ansicht;
+   die Programmliste wird zur kompakten Navigationsspalte.
+   ======================================================================== */
+@media (min-width: 1101px) {
+  html, body {
+    width: 100%;
+  }
+
+  body {
+    padding: 0;
+  }
+
+  .tv-app,
+  body.tenant-scorpions-sggierath .tv-app {
+    width: 100%;
+    max-width: 1920px;
+    padding: 10px 12px 18px;
+  }
+
+  .tv-header,
+  body.tenant-scorpions-sggierath .tv-header {
+    min-height: 0;
+    padding: 9px 16px;
+    margin-bottom: 9px;
+    border-radius: 14px;
+  }
+
+  .tv-logo {
+    width: 46px;
+    height: 46px;
+  }
+
+  .tv-name {
+    font-size: 21px;
+  }
+
+  .tv-tagline {
+    margin-top: 1px;
+    font-size: 11.5px;
+  }
+
+  .tv-broadcast-panel {
+    padding: 6px 9px;
+  }
+
+  .tv-broadcast-operation {
+    display: none;
+  }
+
+  .tv-main,
+  .tv-main--embed,
+  body.tenant-scorpions-sggierath .tv-main,
+  body.tenant-scorpions-sggierath .tv-main--embed {
+    grid-template-columns: minmax(0, 1fr) 220px;
+    gap: 10px;
+  }
+
+  .tv-presenter-bar {
+    padding: 5px 10px;
+    margin-bottom: 5px;
+  }
+
+  .now-playing {
+    grid-template-columns: minmax(0, 1fr) minmax(155px, .28fr);
+    gap: 8px;
+    padding: 8px 11px;
+  }
+
+  .now-playing-upcoming {
+    padding-left: 8px;
+  }
+
+  .player,
+  body.tenant-scorpions-sggierath .player {
+    padding: 6px;
+    border-radius: 15px;
+  }
+
+  .player-window {
+    border-radius: 10px;
+  }
+
+  .player-rule {
+    margin: 8px 0;
+  }
+
+  .player-row {
+    margin: 5px 0;
+  }
+
+  .playlist,
+  body.tenant-scorpions-sggierath .playlist {
+    padding: 10px;
+    border-radius: 15px;
+  }
+
+  .playlist-header,
+  body.tenant-scorpions-sggierath .playlist-header {
+    margin-bottom: 7px;
+  }
+
+  .playlist-subtitle,
+  body.tenant-scorpions-sggierath .playlist-subtitle {
+    display: none;
+  }
+
+  .playlist-auto-badge {
+    padding: 3px 5px;
+    font-size: 8px;
+  }
+
+  .playlist-list,
+  body.tenant-scorpions-sggierath .playlist-list {
+    gap: 6px;
+  }
+
+  .playlist-item,
+  body.tenant-scorpions-sggierath .playlist-item {
+    min-height: 0;
+    grid-template-columns: 24px minmax(0, 1fr);
+    gap: 7px;
+    padding: 8px;
+    border-radius: 10px;
+  }
+
+  body.tenant-scorpions-sggierath .playlist-item.active {
+    min-height: 0;
+    padding-left: 10px;
+  }
+
+  .playlist-item-number,
+  body.tenant-scorpions-sggierath .playlist-item-number {
+    width: 24px;
+    height: 24px;
+    font-size: 10px;
+  }
+
+  .playlist-item-title,
+  body.tenant-scorpions-sggierath .playlist-item-title,
+  body.tenant-scorpions-sggierath .playlist-item.active .playlist-item-title {
+    font-size: 12px;
+  }
+
+  .playlist-item-meta,
+  body.tenant-scorpions-sggierath .playlist-item-meta {
+    display: none;
+  }
+
+  .playlist-item-live,
+  body.tenant-scorpions-sggierath .playlist-item-live {
+    padding: 2px 5px;
+    font-size: 8px;
+  }
+
+  .tv-info-ticker {
+    margin-top: 7px;
+  }
+
+  .tv-categories {
+    margin-top: 18px;
+  }
+
+  .tv-partners {
+    margin-top: 18px;
+  }
+}
+
+@media (min-width: 1550px) {
+  .tv-main,
+  .tv-main--embed,
+  body.tenant-scorpions-sggierath .tv-main,
+  body.tenant-scorpions-sggierath .tv-main--embed {
+    grid-template-columns: minmax(0, 1fr) 235px;
+    gap: 12px;
+  }
+}
+
+/* ========================================================================
+   VERSION 0.5 – ECHTER GROSSBILD-TV-MODUS
+   Strukturelle Änderung für alle Mandanten:
+   Der Player nutzt die volle Content-Breite. Das Programm steht darunter
+   als kompakte horizontale Übersicht. Dadurch ist das Videobild nicht mehr
+   nur eine linke Spalte, sondern der eindeutige Mittelpunkt der Seite.
+   ======================================================================== */
+@media (min-width: 901px) {
+  .tv-app {
+    max-width: 1780px;
+  }
+
+  .tv-main,
+  .tv-main--embed,
+  body.tenant-scorpions-sggierath .tv-main,
+  body.tenant-scorpions-sggierath .tv-main--embed {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .tv-player-col,
+  .tv-playlist-col {
+    width: 100%;
+    max-width: none;
+  }
+
+  .player {
+    width: 100%;
+    padding: 10px;
+  }
+
+  .player-window {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    min-height: 0;
+  }
+
+  /* Programm wird unter dem Großbild zu einer kompakten Sendungsleiste. */
+  .tv-playlist-col .playlist {
+    width: 100%;
+    padding: 16px 18px;
+  }
+
+  .tv-playlist-col .playlist-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 12px;
+  }
+
+  .tv-playlist-col .playlist-list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .tv-playlist-col .playlist-item,
+  body.tenant-scorpions-sggierath .tv-playlist-col .playlist-item {
+    min-height: 82px;
+    padding: 12px 14px;
+  }
+
+  .tv-categories {
+    margin-top: 18px;
+  }
+}
+
+@media (min-width: 1400px) {
+  .tv-playlist-col .playlist-list {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+
+/* ========================================================================
+   VERSION 0.6 – VIDEO-FOKUS MIT THEMEN-TICKER
+   Die bisherigen Kategorie-Kacheln entfallen vollständig. Ihre Inhalte
+   laufen platzsparend im Ticker direkt unter dem Videoplayer. Dadurch bleibt
+   die gesamte Hauptfläche auf Video und Programm konzentriert.
+   ======================================================================== */
+.tv-categories { display: none !important; }
+
+.tv-info-ticker {
+  min-height: 48px;
+  margin-top: 12px;
+  border-radius: 12px;
+}
+
+.tv-info-ticker-label {
+  padding-inline: 20px;
+  font-size: 12px;
+}
+
+.tv-info-ticker-track {
+  font-size: 13px;
+  animation-duration: 48s;
+}
+
+.tv-info-ticker-group {
+  gap: 28px;
+  padding-right: 28px;
+}
+
+@media (max-width: 640px) {
+  .tv-info-ticker-track { font-size: 12px; animation-duration: 56s; }
+}
+
+/* ========================================================================
+   VERSION 0.7 – WEBSITE-EINBETTUNG
+   Kompakter Kopf, Großbild-Player, Programm darunter und Themen-Ticker.
+   ======================================================================== */
+.tv-app--embed {
+  max-width: 1600px;
+  padding: 10px;
+}
+
+.tv-app--embed .tv-header--compact {
+  padding: 10px 14px;
+  margin-bottom: 10px;
+}
+
+.tv-tagline--embed {
+  display: block;
+  margin-top: 1px;
+  font-size: 11px;
+}
+
+.tv-embed-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  border: 1px solid var(--tv-accent);
+  border-radius: 999px;
+  color: var(--tv-accent);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.tv-embed-live span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tv-accent);
+}
+
+.tv-app--embed .tv-presenter-bar {
+  margin-bottom: 6px;
+}
+
+.tv-app--embed .tv-info-ticker {
+  margin-top: 8px;
+  min-height: 42px;
+}
+
+.tv-app--embed .tv-playlist-col .playlist {
+  margin-top: 0;
+}
+
+@media (max-width: 640px) {
+  body { padding: 0; }
+  .tv-app--embed { padding: 6px; }
+  .tv-tagline--embed { display: none; }
+  .tv-app--embed .tv-header--compact { border-radius: 10px; }
+}
+
+
+/* ========================================================================
+   PRÄSENTATIONSVERSION 1.0 – DEZENTER PRODUKT-FOOTER
+   ======================================================================== */
+.tv-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 20px;
+  margin-top: 24px;
+  padding: 16px 4px 6px;
+  border-top: 1px solid color-mix(in srgb, var(--tv-text) 14%, transparent);
+  color: color-mix(in srgb, var(--tv-text) 66%, transparent);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.tv-footer strong {
+  color: color-mix(in srgb, var(--tv-text) 86%, transparent);
+  font-size: 12px;
+  letter-spacing: .02em;
+}
+
+.tv-footer--embed {
+  margin-top: 12px;
+  padding: 10px 4px 2px;
+  font-size: 10px;
+}
+
+.tv-footer--embed strong { font-size: 10px; }
+
+@media (max-width: 640px) {
+  .tv-footer { display: block; text-align: center; }
+  .tv-footer span { display: block; margin-top: 3px; }
+}

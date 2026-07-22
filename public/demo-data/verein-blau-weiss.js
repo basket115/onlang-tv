@@ -1,0 +1,61 @@
+// verein-blau-weiss.js
+// Zweiter Demo-Mandant zum Testen des Design-Wechsels — bewusst
+// deutlich anderes Farbschema (Blau/Weiß statt Orange/Schwarz), um zu
+// beweisen, dass das Theming rein datengetrieben funktioniert.
+// AUSSCHLIESSLICH Daten, keine eigene Logik. Begleitende
+// verein-blau-weiss.json: identischer Inhalt, reine Referenz.
+
+window.ONLANG = window.ONLANG || {};
+window.ONLANG.tenantRegistry = window.ONLANG.tenantRegistry || {};
+
+window.ONLANG.tenantRegistry['verein-blau-weiss'] = {
+  tenant: {
+    customerId: 'verein-blau-weiss',
+    name: 'SV Blau-Weiß TV',
+    tagline: 'Das Videoportal des SV Blau-Weiß',
+    logoUrl: '',
+    logoText: 'BW',
+    theme: {
+      accent: '#1e6fd9',
+      background: '#f4f7fb',
+      surface: '#ffffff',
+      text: '#10203a',
+    },
+    presenter: {
+      label: 'SV Blau-Weiß TV präsentiert von',
+      name: 'ONLANG',
+      logoUrl: '',
+    },
+  },
+  settings: {
+    defaultView: 'full',
+    autoplay: false,
+    mutedAutoplay: true,
+    loopPlaylist: false,
+    advertisingMode: 'startup',
+  },
+  live: {
+    enabled: true,
+    title: 'Kreisliga A',
+    date: 'Sonntag',
+    time: '15:00 Uhr',
+  },
+  videos: [
+    { id: 'bw-video-1', title: 'Saisonrückblick 2025/26', description: 'Die Höhepunkte der Saison.', category: 'Highlights', durationLabel: '00:08', src: 'public/assets/videos/sample.mp4', badge: 'NEU' },
+    { id: 'bw-video-2', title: 'Interview mit dem Trainer', description: 'Gespräch über die kommende Saison.', category: 'Interviews', durationLabel: '00:08', src: 'public/assets/videos/sample-2.mp4', badge: null },
+    { id: 'bw-video-3', title: 'Jugendabteilung stellt sich vor', description: 'Einblicke in die Nachwuchsarbeit.', category: 'Jugend', durationLabel: '00:08', src: 'public/assets/videos/sample-3.mp4', badge: null },
+  ],
+  categories: [
+    { id: 'cat-1', icon: '⚽', label: 'Highlights', description: 'Die besten Szenen der Saison' },
+    { id: 'cat-2', icon: '🎙', label: 'Interviews', description: 'Stimmen aus dem Verein' },
+    { id: 'cat-3', icon: '🧒', label: 'Jugend', description: 'Die Nachwuchsabteilung' },
+    { id: 'cat-4', icon: '🏛', label: 'Verein', description: 'Neuigkeiten aus dem Verein' },
+  ],
+  partners: [
+    { id: 'p-1', name: 'ONLANG', logoUrl: 'public/assets/logos/onlang-logo.png', subtitle: 'Digitale Vereinsplattform' },
+    { id: 'p-2', name: 'Musterbäckerei', logoUrl: '', subtitle: 'Trikotsponsor' },
+  ],
+  advertisements: [
+    { id: 'ad-1', title: 'Willkommen bei ONLANG', sponsor: 'ONLANG', durationLabel: '00:10', src: 'public/assets/videos/onlang-spotfolien.mp4', active: true },
+  ],
+};

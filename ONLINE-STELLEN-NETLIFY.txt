@@ -1,0 +1,19 @@
+ONLANG TV Demo 1.0 – öffentlich zeigen
+======================================
+
+Diese ZIP ist eine statische Website und für Netlify vorbereitet.
+
+Schnellster Weg zu einer öffentlichen URL:
+1. ZIP vollständig entpacken.
+2. Im Browser https://app.netlify.com/drop öffnen.
+3. Den ENTPACKTEN Hauptordner in das Netlify-Fenster ziehen.
+4. Nach wenigen Sekunden zeigt Netlify eine öffentliche https://...netlify.app-URL.
+5. Diese URL kann direkt an Martin geschickt werden.
+
+Wichtig:
+- Nicht die ZIP selbst, sondern den entpackten Ordner hochladen.
+- index.html muss direkt im hochgeladenen Hauptordner liegen.
+- Die Videos liegen in public/assets/videos und werden mit hochgeladen.
+
+Für spätere Versionen kann derselbe Netlify-Site-Eintrag erneut aktualisiert
+werden. Dann bleibt die öffentliche URL gleich und nur der Inhalt ändert sich.

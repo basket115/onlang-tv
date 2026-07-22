@@ -1,0 +1,56 @@
+// default.js
+// Neutraler Standard-Mandant (Fallback). Wird als klassisches <script>
+// geladen (siehe index.html) und trägt sich in die Tenant-Registry ein
+// — reines fetch() einer .json-Datei funktioniert unter file:// nicht
+// (siehe src/tenant/tenant-service.js für die ausführliche Begründung).
+// Die begleitende default.json im selben Ordner ist identischer Inhalt
+// als reine, menschenlesbare Referenz und wird zur Laufzeit NICHT geladen.
+
+window.ONLANG = window.ONLANG || {};
+window.ONLANG.tenantRegistry = window.ONLANG.tenantRegistry || {};
+
+window.ONLANG.tenantRegistry['DEFAULT'] = {
+  tenant: {
+    customerId: 'DEFAULT',
+    name: 'ONLANG TV',
+    tagline: 'Das Videoportal für Vereine und Verbände',
+    logoUrl: 'public/assets/logos/onlang-logo.png',
+    logoText: 'TV',
+    theme: {
+      accent: '#f28c00',
+      background: '#080808',
+      surface: '#151515',
+      text: '#ffffff',
+    },
+    presenter: {
+      label: 'präsentiert von',
+      name: 'ONLANG',
+      logoUrl: '',
+    },
+  },
+  settings: {
+    defaultView: 'full',
+    autoplay: true,
+    mutedAutoplay: true,
+    loopPlaylist: true,
+    advertisingMode: 'startup',
+  },
+  live: { enabled: false, title: '', date: '', time: '' },
+  videos: [
+    { id: 'video-1', title: 'Video 1 – Vereinsbeitrag', description: 'Demo mit echtem Vereinsvideo.', category: 'Highlights', durationLabel: 'VIDEO', src: 'public/assets/videos/video1.mp4', badge: 'NEU' },
+    { id: 'video-2', title: 'Video 2 – Vereinsbeitrag', description: 'Demo mit echtem Vereinsvideo.', category: 'Interviews', durationLabel: 'VIDEO', src: 'public/assets/videos/video2.mp4', badge: null },
+    { id: 'video-3', title: 'Video 3 – Vereinsbeitrag', description: 'Demo mit echtem Vereinsvideo.', category: 'Nachwuchs', durationLabel: 'VIDEO', src: 'public/assets/videos/video3.mp4', badge: null },
+  ],
+
+  categories: [
+    { id: 'cat-1', icon: '🏀', label: 'Highlights', description: 'Die besten Szenen' },
+    { id: 'cat-2', icon: '🎙', label: 'Interviews', description: 'Stimmen aus dem Verein' },
+    { id: 'cat-3', icon: '🧒', label: 'Nachwuchs', description: 'Der Nachwuchs im Fokus' },
+  ],
+  partners: [
+    { id: 'p-1', name: 'ONLANG', logoUrl: 'public/assets/logos/onlang-logo.png', subtitle: 'Digitale Vereinsplattform' },
+  ],
+  advertisements: [
+    { id: 'ad-1', title: 'ONLANG präsentiert', sponsor: 'ONLANG', durationLabel: '00:10', src: 'public/assets/videos/onlang-spot-real.mp4', active: true },
+  ],
+};

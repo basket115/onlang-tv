@@ -1,0 +1,10 @@
+ONLANG TV – VERSION 0.7 PRÄSENTATIONSKANDIDAT
+=============================================
+
+- Großbild-Player als klarer Mittelpunkt
+- Programm kompakt unter dem Player
+- Kategorien nicht mehr als Kacheln
+- Themen und Programminhalte im laufenden Ticker
+- Drei Mandanten: ONLANG TV, BBK TV, Scorpions TV
+- Zusätzliche kompakte Website-Einbettung über website-tv.html
+- Player-, Playlist- und Werbeablauf unverändert
