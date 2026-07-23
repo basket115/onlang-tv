@@ -5,7 +5,7 @@
 
 const BootstrapLoader = {
 
-  apiUrl:"https://script.google.com/macros/s/AKfycbxovRbJTE6qP_dP-I0PS2f_Hfnl58RcDNj00FL4cGg3LpIrrRhQKI10SMnH0LoiH-2J/exec"
+  apiUrl:"https://script.google.com/macros/s/AKfycbxovRbJTE6qP_dP-I0PS2f_Hfnl58RcDNj00FL4cGg3LpIrrRhQKI10SMnH0LoiH-2J/exec",
     
 
   async test() {
