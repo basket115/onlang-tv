@@ -15,7 +15,7 @@
  */
 
 const APPS_SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycbxovRbJTE6qP_dP-I0PS2f_Hfnl58RcDNj00FL4cGg3LpIrrRhQKI10SMnH0LoiH-2J/exec";
+  "https://script.google.com/macros/s/AKfycbxhH04vCiuFn4jhpENBMpCL9EC95f4Y43buzwJXg7zvb-iTlIUXF8lVl1g84gWXIHPq/exec";
 
 export default async function handler(request) {
 
