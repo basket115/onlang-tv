@@ -1,161 +1,727 @@
 // tenant-service.js
 //
-// Verantwortlich für: Kunden-ID aus der URL lesen, passenden lokalen
-// Demo-Datensatz laden, validieren, neutralen Fallback liefern, sowie
-// (neu in Phase 5) das Theme des geladenen Mandanten auf :root
-// anzuwenden.
+// Verantwortlich für:
+// - Kunden-ID aus der URL lesen
+// - Bootstrap-Daten über die Netlify Function laden
+// - Bootstrap-Antwort in das bestehende ONLANG-TV-Datenformat umwandeln
+// - Daten über TenantValidator validieren
+// - bei API-Fehlern auf lokale Demo-Daten zurückfallen
+// - Theme des geladenen Mandanten anwenden
 //
-// WICHTIG (siehe docs/ARCHITECTURE.md, Abschnitt "Austauschbare
-// Datenquelle"): Diese Datei ist bewusst die EINZIGE Stelle, die weiß,
-// woher Mandantendaten kommen. Views und Controller rufen ausschließlich
-// loadTenantData() auf und kennen weder das Registry-Muster unten noch
-// eine spätere echte API. Wenn in Phase 7 eine echte
-// Google-Sheets-/API-Anbindung hinzukommt, wird ausschließlich diese
-// Datei geändert.
+// WICHTIG:
+// Diese Datei bleibt die EINZIGE Stelle, die weiß, woher
+// Mandantendaten kommen.
 //
-// WICHTIGER HINWEIS ZUR DATENQUELLE (Phase 5):
-// Reines fetch() einer .json-Datei funktioniert unter file:// in Chrome
-// NICHT ("Fetch API cannot load file:///... URL scheme 'file' is not
-// supported") — das wurde empirisch geprüft. Daher werden die
-// Mandantendaten NICHT per fetch(), sondern über klassische
-// <script>-Tags geladen, die sich in eine Registry eintragen (exakt
-// dasselbe Muster wie bereits playlist-data.js/advertising-data.js).
-// Siehe public/demo-data/*.js — die begleitenden *.json-Dateien im
-// selben Ordner sind reine, menschenlesbare Referenz/Dokumentation und
-// werden zur Laufzeit NICHT geladen.
+// main.js, Views, Player, Playlist und Werbung bleiben dadurch
+// unabhängig von der Datenquelle.
 //
 // Klassisches <script>, KEIN ES-Modul.
 
 window.ONLANG = window.ONLANG || {};
-window.ONLANG.tenant = window.ONLANG.tenant || {};
-// Registry, in die sich public/demo-data/*.js-Dateien eintragen
-// (siehe z.B. public/demo-data/default.js).
-window.ONLANG.tenantRegistry = window.ONLANG.tenantRegistry || {};
+window.ONLANG.tenant =
+  window.ONLANG.tenant || {};
+
+window.ONLANG.tenantRegistry =
+  window.ONLANG.tenantRegistry || {};
 
 (function (ns) {
   'use strict';
 
-  var DEFAULT_CUSTOMER_ID = 'DEFAULT';
+  var DEFAULT_CUSTOMER_ID =
+    'DEFAULT';
+
+  var BOOTSTRAP_API_URL =
+    '/.netlify/functions/tv-bootstrap';
+
 
   /**
-   * Liest die angeforderte Kunden-ID aus der URL. Primärer, seit
-   * Schritt 1 dokumentierter Parameter ist "?kunde=". Zusätzlich wird
-   * "?tenant=" als Alias akzeptiert (falls "kunde" fehlt) — beide
-   * führen zum selben Ergebnis. Fehlen beide, wird
-   * DEFAULT_CUSTOMER_ID verwendet.
-   * @param {Location} [location] - optional, für Tests injizierbar
+   * Liest die Kunden-ID aus der URL.
+   *
+   * Unterstützt:
+   * ?kunde=V006
+   * ?tenant=V006
+   *
+   * @param {Location} [location]
    * @returns {string}
    */
   function getRequestedCustomerId(location) {
-    location = location || window.location;
-    var params = new URLSearchParams(location.search);
-    var kunde = params.get('kunde');
-    if (kunde && kunde.trim() !== '') return kunde.trim();
-    var tenantAlias = params.get('tenant');
-    if (tenantAlias && tenantAlias.trim() !== '') return tenantAlias.trim();
+    location =
+      location || window.location;
+
+    var params =
+      new URLSearchParams(
+        location.search
+      );
+
+    var kunde =
+      params.get('kunde');
+
+    if (
+      kunde &&
+      kunde.trim() !== ''
+    ) {
+      return kunde.trim();
+    }
+
+    var tenantAlias =
+      params.get('tenant');
+
+    if (
+      tenantAlias &&
+      tenantAlias.trim() !== ''
+    ) {
+      return tenantAlias.trim();
+    }
+
     return DEFAULT_CUSTOMER_ID;
   }
 
+
   /**
-   * Liefert alle aktuell über <script>-Tags registrierten Mandanten-IDs
-   * (siehe public/demo-data/*.js) — wird z.B. vom
-   * Vereins-Schnellwechsler-Dropdown verwendet.
+   * Liefert alle lokal registrierten Kunden-IDs.
+   *
+   * Die lokale Registry bleibt als Fallback und für den bisherigen
+   * Schnellwechsler erhalten.
+   *
    * @returns {string[]}
    */
   function getAvailableCustomerIds() {
-    return Object.keys(ns.tenantRegistryRef());
+    return Object.keys(
+      ns.tenantRegistryRef()
+    );
   }
+
 
   /**
-   * Lädt, validiert und liefert die Mandantendaten für die angeforderte
-   * Kunden-ID. Liefert bei jedem Fehler einen klaren, funktionierenden
-   * neutralen Fallback statt einer Exception. Bleibt bewusst
-   * Promise-basiert (obwohl die aktuelle Quelle synchron ist), damit
-   * eine spätere echte API-Anbindung (Phase 7) ohne Änderungen an den
-   * Aufrufstellen möglich ist.
+   * Lädt die Mandantendaten.
+   *
+   * Ablauf:
+   *
+   * 1. Bootstrap API versuchen
+   * 2. Antwort adaptieren
+   * 3. Daten validieren
+   * 4. Bei Fehler lokale Registry verwenden
    *
    * @param {string} requestedCustomerId
-   * @returns {Promise<{
-   *   requestedCustomerId: string,
-   *   loadedCustomerId: string,
-   *   usedFallback: boolean,
-   *   data: object,
-   *   warnings: string[],
-   *   loadError: string | null
-   * }>}
+   * @returns {Promise<object>}
    */
-  function loadTenantData(requestedCustomerId) {
-    var requestedId = requestedCustomerId || DEFAULT_CUSTOMER_ID;
-    var loadedId = requestedId;
-    var raw = null;
-    var loadError = null;
+  function loadTenantData(
+    requestedCustomerId
+  ) {
+    var requestedId =
+      normalizeCustomerId(
+        requestedCustomerId
+      );
 
-    raw = lookupTenantRaw(requestedId);
-    if (raw === null) {
-      loadError = 'Kein Datensatz gefunden für Kunden-ID "' + requestedId + '" (erwartet: public/demo-data/' + requestedId + '.js, eingetragen unter window.ONLANG.tenantRegistry["' + requestedId + '"]).';
-      loadedId = DEFAULT_CUSTOMER_ID;
-      raw = lookupTenantRaw(DEFAULT_CUSTOMER_ID);
-      if (raw === null) {
-        loadError += ' | Zusätzlich konnte auch der Standard-Datensatz ("DEFAULT") nicht gefunden werden.';
-      }
+    /*
+     * Unter file:// ist ein Fetch auf eine Netlify Function nicht
+     * sinnvoll möglich.
+     *
+     * Deshalb wird beim lokalen Öffnen direkt die bisherige
+     * Demo-Registry verwendet.
+     */
+    if (
+      window.location &&
+      window.location.protocol === 'file:'
+    ) {
+      return Promise.resolve(
+        loadFromLocalRegistry(
+          requestedId,
+          'Lokaler file://-Betrieb — Bootstrap API wurde nicht aufgerufen.'
+        )
+      );
     }
 
-    var validated = ns.TenantValidator.validateTenantData(raw);
-    var usedFallback = loadedId !== requestedId;
+    return loadFromBootstrapApi(
+      requestedId
+    ).catch(function (error) {
+      var message =
+        error &&
+        error.message
+          ? error.message
+          : String(error);
 
-    var result = {
-      requestedCustomerId: requestedId,
-      loadedCustomerId: loadedId,
-      usedFallback: usedFallback,
-      data: validated.data,
-      warnings: validated.warnings,
-      loadError: loadError,
-    };
+      console.warn(
+        '[ONLANG TV] Bootstrap API nicht verfügbar — lokaler Fallback wird verwendet.',
+        error
+      );
 
-    return Promise.resolve(result);
+      return loadFromLocalRegistry(
+        requestedId,
+        'Bootstrap API konnte nicht geladen werden: ' +
+          message
+      );
+    });
   }
 
-  function lookupTenantRaw(customerId) {
-    // Suche zunächst exakt, dann case-insensitiv (Kunden-IDs in URLs
-    // werden häufig unterschiedlich großgeschrieben eingegeben).
-    if (Object.prototype.hasOwnProperty.call(ns.tenantRegistryRef(), customerId)) {
-      return ns.tenantRegistryRef()[customerId];
-    }
-    var lowerTarget = String(customerId).toLowerCase();
-    var registry = ns.tenantRegistryRef();
-    for (var key in registry) {
-      if (Object.prototype.hasOwnProperty.call(registry, key) && key.toLowerCase() === lowerTarget) {
-        return registry[key];
+
+  /**
+   * Lädt Daten über die Netlify Function.
+   *
+   * @param {string} requestedId
+   * @returns {Promise<object>}
+   */
+  function loadFromBootstrapApi(
+    requestedId
+  ) {
+    var url =
+      BOOTSTRAP_API_URL +
+      '?kunde=' +
+      encodeURIComponent(
+        requestedId
+      );
+
+    console.info(
+      '[ONLANG TV] Lade Bootstrap:',
+      url
+    );
+
+    return fetch(
+      url,
+      {
+        method: 'GET',
+        headers: {
+          Accept:
+            'application/json'
+        },
+        cache:
+          'no-store'
+      }
+    )
+      .then(function (response) {
+        if (!response.ok) {
+          throw new Error(
+            'HTTP ' +
+              response.status
+          );
+        }
+
+        return response.json();
+      })
+      .then(function (bootstrapResult) {
+        if (
+          !bootstrapResult ||
+          bootstrapResult.success !== true
+        ) {
+          var apiMessage =
+            getBootstrapErrorMessage(
+              bootstrapResult
+            );
+
+          throw new Error(
+            apiMessage
+          );
+        }
+
+        var raw =
+          adaptBootstrapResult(
+            bootstrapResult
+          );
+
+        var validated =
+          ns.TenantValidator
+            .validateTenantData(
+              raw
+            );
+
+        var apiWarnings =
+          Array.isArray(
+            bootstrapResult.warnings
+          )
+            ? bootstrapResult.warnings
+            : [];
+
+        return {
+          requestedCustomerId:
+            getBootstrapRequestedCustomerId(
+              bootstrapResult,
+              requestedId
+            ),
+
+          loadedCustomerId:
+            getBootstrapLoadedCustomerId(
+              bootstrapResult,
+              raw,
+              requestedId
+            ),
+
+          usedFallback:
+            getBootstrapFallbackUsed(
+              bootstrapResult
+            ),
+
+          data:
+            validated.data,
+
+          warnings:
+            apiWarnings.concat(
+              validated.warnings
+            ),
+
+          loadError:
+            null,
+
+          dataSource:
+            'bootstrap-api'
+        };
+      });
+  }
+
+
+  /**
+   * Wandelt die öffentliche Bootstrap-Struktur in das Format um,
+   * das der bestehende TenantValidator und main.js erwarten.
+   *
+   * Bootstrap:
+   *
+   * {
+   *   tenant,
+   *   settings,
+   *   playlist: { videos },
+   *   advertising: { items },
+   *   live
+   * }
+   *
+   * Intern:
+   *
+   * {
+   *   tenant,
+   *   settings,
+   *   videos,
+   *   advertisements,
+   *   live,
+   *   categories,
+   *   partners
+   * }
+   *
+   * @param {object} bootstrapResult
+   * @returns {object}
+   */
+  function adaptBootstrapResult(
+    bootstrapResult
+  ) {
+    var playlist =
+      isPlainObject(
+        bootstrapResult.playlist
+      )
+        ? bootstrapResult.playlist
+        : {};
+
+    var advertising =
+      isPlainObject(
+        bootstrapResult.advertising
+      )
+        ? bootstrapResult.advertising
+        : {};
+
+    return {
+      tenant:
+        isPlainObject(
+          bootstrapResult.tenant
+        )
+          ? bootstrapResult.tenant
+          : {},
+
+      settings:
+        isPlainObject(
+          bootstrapResult.settings
+        )
+          ? bootstrapResult.settings
+          : {},
+
+      live:
+        isPlainObject(
+          bootstrapResult.live
+        )
+          ? bootstrapResult.live
+          : {},
+
+      videos:
+        Array.isArray(
+          playlist.videos
+        )
+          ? playlist.videos
+          : [],
+
+      advertisements:
+        Array.isArray(
+          advertising.items
+        )
+          ? advertising.items
+          : [],
+
+      /*
+       * Die aktuelle Bootstrap API liefert diese Bereiche noch nicht.
+       * Leere Arrays halten das bestehende Datenmodell stabil.
+       */
+      categories: [],
+      partners: []
+    };
+  }
+
+
+  /**
+   * Lokaler Fallback auf die bisherige Registry.
+   *
+   * @param {string} requestedId
+   * @param {string|null} previousError
+   * @returns {object}
+   */
+  function loadFromLocalRegistry(
+    requestedId,
+    previousError
+  ) {
+    var loadedId =
+      requestedId;
+
+    var raw =
+      lookupTenantRaw(
+        requestedId
+      );
+
+    var loadError =
+      previousError || null;
+
+    if (raw === null) {
+      var notFoundMessage =
+        'Kein lokaler Datensatz gefunden für Kunden-ID "' +
+        requestedId +
+        '".';
+
+      loadError =
+        loadError
+          ? loadError +
+            ' | ' +
+            notFoundMessage
+          : notFoundMessage;
+
+      loadedId =
+        DEFAULT_CUSTOMER_ID;
+
+      raw =
+        lookupTenantRaw(
+          DEFAULT_CUSTOMER_ID
+        );
+
+      if (raw === null) {
+        loadError +=
+          ' Zusätzlich konnte auch der lokale Standard-Datensatz "' +
+          DEFAULT_CUSTOMER_ID +
+          '" nicht gefunden werden.';
       }
     }
+
+    var validated =
+      ns.TenantValidator
+        .validateTenantData(
+          raw
+        );
+
+    return {
+      requestedCustomerId:
+        requestedId,
+
+      loadedCustomerId:
+        loadedId,
+
+      usedFallback:
+        loadedId !==
+        requestedId,
+
+      data:
+        validated.data,
+
+      warnings:
+        validated.warnings,
+
+      loadError:
+        loadError,
+
+      dataSource:
+        'local-registry'
+    };
+  }
+
+
+  /**
+   * Sucht einen Mandanten in der lokalen Registry.
+   *
+   * Erst exakt, danach case-insensitiv.
+   *
+   * @param {string} customerId
+   * @returns {object|null}
+   */
+  function lookupTenantRaw(customerId) {
+    var registry =
+      ns.tenantRegistryRef();
+
+    if (
+      Object.prototype
+        .hasOwnProperty
+        .call(
+          registry,
+          customerId
+        )
+    ) {
+      return registry[
+        customerId
+      ];
+    }
+
+    var lowerTarget =
+      String(
+        customerId
+      ).toLowerCase();
+
+    for (var key in registry) {
+      if (
+        Object.prototype
+          .hasOwnProperty
+          .call(
+            registry,
+            key
+          ) &&
+        key.toLowerCase() ===
+          lowerTarget
+      ) {
+        return registry[
+          key
+        ];
+      }
+    }
+
     return null;
   }
 
+
   /**
-   * Überträgt tenant.theme (unverändert seit Schritt 1: accent/
-   * background/surface/text) als CSS-Variablen auf :root — siehe
-   * src/styles/tokens.css für die Variablennamen. Rein additiv: ohne
-   * Aufruf bleiben die neutralen Standardwerte aus tokens.css aktiv.
-   * @param {{ accent: string, background: string, surface: string, text: string }} theme
+   * Ermittelt die angeforderte Kunden-ID aus der Bootstrap-Metastruktur.
    */
-  function applyTenantTheme(theme) {
-    if (!theme) return;
-    var root = document.documentElement;
-    if (theme.accent) root.style.setProperty('--tv-accent', theme.accent);
-    if (theme.background) root.style.setProperty('--tv-bg', theme.background);
-    if (theme.surface) root.style.setProperty('--tv-surface', theme.surface);
-    if (theme.text) root.style.setProperty('--tv-text', theme.text);
+  function getBootstrapRequestedCustomerId(
+    bootstrapResult,
+    fallbackId
+  ) {
+    if (
+      isPlainObject(
+        bootstrapResult.meta
+      ) &&
+      typeof bootstrapResult
+        .meta
+        .requestedCustomerId ===
+        'string' &&
+      bootstrapResult
+        .meta
+        .requestedCustomerId
+        .trim() !== ''
+    ) {
+      return bootstrapResult
+        .meta
+        .requestedCustomerId
+        .trim();
+    }
+
+    return fallbackId;
   }
 
-  ns.tenantRegistryRef = function () {
-    return window.ONLANG.tenantRegistry;
-  };
+
+  /**
+   * Ermittelt die tatsächlich geladene Kunden-ID.
+   */
+  function getBootstrapLoadedCustomerId(
+    bootstrapResult,
+    raw,
+    fallbackId
+  ) {
+    if (
+      isPlainObject(
+        bootstrapResult.meta
+      ) &&
+      typeof bootstrapResult
+        .meta
+        .loadedCustomerId ===
+        'string' &&
+      bootstrapResult
+        .meta
+        .loadedCustomerId
+        .trim() !== ''
+    ) {
+      return bootstrapResult
+        .meta
+        .loadedCustomerId
+        .trim();
+    }
+
+    if (
+      raw &&
+      raw.tenant &&
+      typeof raw
+        .tenant
+        .customerId ===
+        'string' &&
+      raw
+        .tenant
+        .customerId
+        .trim() !== ''
+    ) {
+      return raw
+        .tenant
+        .customerId
+        .trim();
+    }
+
+    return fallbackId;
+  }
+
+
+  /**
+   * Liest das Fallback-Kennzeichen der Bootstrap API.
+   */
+  function getBootstrapFallbackUsed(
+    bootstrapResult
+  ) {
+    return !!(
+      isPlainObject(
+        bootstrapResult.meta
+      ) &&
+      bootstrapResult
+        .meta
+        .fallbackUsed ===
+        true
+    );
+  }
+
+
+  /**
+   * Baut eine verständliche Fehlermeldung aus einer Fehlerantwort.
+   */
+  function getBootstrapErrorMessage(
+    bootstrapResult
+  ) {
+    if (
+      bootstrapResult &&
+      isPlainObject(
+        bootstrapResult.error
+      )
+    ) {
+      var code =
+        typeof bootstrapResult
+          .error
+          .code ===
+          'string'
+          ? bootstrapResult
+            .error
+            .code
+          : 'BOOTSTRAP_ERROR';
+
+      var message =
+        typeof bootstrapResult
+          .error
+          .message ===
+          'string'
+          ? bootstrapResult
+            .error
+            .message
+          : 'Bootstrap API meldete einen Fehler.';
+
+      return (
+        code +
+        ': ' +
+        message
+      );
+    }
+
+    return (
+      'Bootstrap API lieferte keine erfolgreiche Antwort.'
+    );
+  }
+
+
+  /**
+   * Normalisiert eine Kunden-ID.
+   */
+  function normalizeCustomerId(value) {
+    if (
+      typeof value === 'string' &&
+      value.trim() !== ''
+    ) {
+      return value.trim();
+    }
+
+    return DEFAULT_CUSTOMER_ID;
+  }
+
+
+  /**
+   * Überträgt das Tenant-Theme auf die CSS-Variablen.
+   *
+   * @param {object} theme
+   */
+  function applyTenantTheme(theme) {
+    if (!theme) {
+      return;
+    }
+
+    var root =
+      document.documentElement;
+
+    if (theme.accent) {
+      root.style.setProperty(
+        '--tv-accent',
+        theme.accent
+      );
+    }
+
+    if (theme.background) {
+      root.style.setProperty(
+        '--tv-bg',
+        theme.background
+      );
+    }
+
+    if (theme.surface) {
+      root.style.setProperty(
+        '--tv-surface',
+        theme.surface
+      );
+    }
+
+    if (theme.text) {
+      root.style.setProperty(
+        '--tv-text',
+        theme.text
+      );
+    }
+  }
+
+
+  /**
+   * Liefert die lokale Demo-Registry.
+   */
+  ns.tenantRegistryRef =
+    function () {
+      return window.ONLANG
+        .tenantRegistry;
+    };
+
 
   ns.TenantService = {
-    DEFAULT_CUSTOMER_ID: DEFAULT_CUSTOMER_ID,
-    getRequestedCustomerId: getRequestedCustomerId,
-    getAvailableCustomerIds: getAvailableCustomerIds,
-    loadTenantData: loadTenantData,
-    applyTenantTheme: applyTenantTheme,
+    DEFAULT_CUSTOMER_ID:
+      DEFAULT_CUSTOMER_ID,
+
+    BOOTSTRAP_API_URL:
+      BOOTSTRAP_API_URL,
+
+    getRequestedCustomerId:
+      getRequestedCustomerId,
+
+    getAvailableCustomerIds:
+      getAvailableCustomerIds,
+
+    loadTenantData:
+      loadTenantData,
+
+    applyTenantTheme:
+      applyTenantTheme
   };
+
 })(window.ONLANG.tenant);
