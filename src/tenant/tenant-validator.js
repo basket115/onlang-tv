@@ -6,11 +6,16 @@
 // als Klartext-Hinweis in "warnings" zurückgegeben. Keine externe
 // Validierungsbibliothek nötig.
 //
-// Ab Phase 5 klassisches <script> (kein ES-Modul mehr). Validiert
-// zusätzlich zu den seit Schritt 1 bestehenden Feldern (unverändert:
-// tenant.theme.{accent,background,surface,text}) die neuen, optionalen
-// Branding-Felder sowie die Item-Struktur von videos/categories/
-// partners/advertisements (siehe docs/DATA_MODEL.md).
+// Ab Phase 5 klassisches <script> (kein ES-Modul mehr).
+//
+// Additive Erweiterung für ONLANG TV:
+// Videos unterstützen zusätzlich:
+// - poster
+// - team
+// - publication
+// - content
+//
+// Bestehende Video-Felder bleiben unverändert erhalten.
 
 window.ONLANG = window.ONLANG || {};
 window.ONLANG.tenant = window.ONLANG.tenant || {};
@@ -18,225 +23,849 @@ window.ONLANG.tenant = window.ONLANG.tenant || {};
 (function (ns) {
   'use strict';
 
-  var DEFAULT_TENANT_SCHEMA = ns.TenantSchema.DEFAULT_TENANT_SCHEMA;
-  var VALID_ADVERTISING_MODES = ns.TenantSchema.VALID_ADVERTISING_MODES;
-  var VALID_VIEW_MODES = ns.TenantSchema.VALID_VIEW_MODES;
+  var DEFAULT_TENANT_SCHEMA =
+    ns.TenantSchema.DEFAULT_TENANT_SCHEMA;
+
+  var VALID_ADVERTISING_MODES =
+    ns.TenantSchema.VALID_ADVERTISING_MODES;
+
+  var VALID_VIEW_MODES =
+    ns.TenantSchema.VALID_VIEW_MODES;
+
 
   /**
+   * Prüft einen vollständigen Mandanten-Datensatz.
+   *
    * @param {unknown} rawInput
    * @returns {{ data: object, warnings: string[] }}
    */
   function validateTenantData(rawInput) {
     var warnings = [];
-    var raw = isPlainObject(rawInput) ? rawInput : {};
+
+    var raw =
+      isPlainObject(rawInput)
+        ? rawInput
+        : {};
 
     if (!isPlainObject(rawInput)) {
-      warnings.push('Eingabedaten waren kein gültiges Objekt — vollständiger Standard-Datensatz wird verwendet.');
+      warnings.push(
+        'Eingabedaten waren kein gültiges Objekt — vollständiger Standard-Datensatz wird verwendet.'
+      );
     }
 
     var data = {
-      tenant: validateTenantBlock(raw.tenant, warnings),
-      settings: validateSettingsBlock(raw.settings, warnings),
-      live: validateLiveBlock(raw.live, warnings),
-      videos: validateVideoItems(raw.videos, warnings),
-      categories: validateCategoryItems(raw.categories, warnings),
-      partners: validatePartnerItems(raw.partners, warnings),
-      advertisements: validateAdvertisementItems(raw.advertisements, warnings),
+      tenant:
+        validateTenantBlock(
+          raw.tenant,
+          warnings
+        ),
+
+      settings:
+        validateSettingsBlock(
+          raw.settings,
+          warnings
+        ),
+
+      live:
+        validateLiveBlock(
+          raw.live,
+          warnings
+        ),
+
+      videos:
+        validateVideoItems(
+          raw.videos,
+          warnings
+        ),
+
+      categories:
+        validateCategoryItems(
+          raw.categories,
+          warnings
+        ),
+
+      partners:
+        validatePartnerItems(
+          raw.partners,
+          warnings
+        ),
+
+      advertisements:
+        validateAdvertisementItems(
+          raw.advertisements,
+          warnings
+        )
     };
 
-    return { data: data, warnings: warnings };
+    return {
+      data: data,
+      warnings: warnings
+    };
   }
 
+
+  /**
+   * Validiert den Mandantenblock.
+   */
   function validateTenantBlock(input, warnings) {
-    var fallback = DEFAULT_TENANT_SCHEMA.tenant;
-    var t = isPlainObject(input) ? input : {};
+    var fallback =
+      DEFAULT_TENANT_SCHEMA.tenant;
+
+    var t =
+      isPlainObject(input)
+        ? input
+        : {};
+
     if (!isPlainObject(input)) {
-      warnings.push('Feld "tenant" fehlte oder war ungültig — Standardwerte verwendet.');
+      warnings.push(
+        'Feld "tenant" fehlte oder war ungültig — Standardwerte verwendet.'
+      );
     }
 
-    var customerId = nonEmptyString(t.customerId, fallback.customerId, 'tenant.customerId', warnings);
-    var name = nonEmptyString(t.name, fallback.name, 'tenant.name', warnings);
-    var tagline = typeof t.tagline === 'string' ? t.tagline : fallback.tagline;
-    var logoUrl = typeof t.logoUrl === 'string' ? t.logoUrl : fallback.logoUrl;
-    var logoText = typeof t.logoText === 'string' ? t.logoText : fallback.logoText;
+    var customerId =
+      nonEmptyString(
+        t.customerId,
+        fallback.customerId,
+        'tenant.customerId',
+        warnings
+      );
 
-    var themeInput = isPlainObject(t.theme) ? t.theme : {};
+    var name =
+      nonEmptyString(
+        t.name,
+        fallback.name,
+        'tenant.name',
+        warnings
+      );
+
+    var tagline =
+      typeof t.tagline === 'string'
+        ? t.tagline
+        : fallback.tagline;
+
+    var logoUrl =
+      typeof t.logoUrl === 'string'
+        ? t.logoUrl
+        : fallback.logoUrl;
+
+    var logoText =
+      typeof t.logoText === 'string'
+        ? t.logoText
+        : fallback.logoText;
+
+    var themeInput =
+      isPlainObject(t.theme)
+        ? t.theme
+        : {};
+
     if (!isPlainObject(t.theme)) {
-      warnings.push('Feld "tenant.theme" fehlte oder war ungültig — Standardfarben verwendet.');
+      warnings.push(
+        'Feld "tenant.theme" fehlte oder war ungültig — Standardfarben verwendet.'
+      );
     }
+
     var theme = {
-      accent: typeof themeInput.accent === 'string' ? themeInput.accent : fallback.theme.accent,
-      background: typeof themeInput.background === 'string' ? themeInput.background : fallback.theme.background,
-      surface: typeof themeInput.surface === 'string' ? themeInput.surface : fallback.theme.surface,
-      text: typeof themeInput.text === 'string' ? themeInput.text : fallback.theme.text,
+      accent:
+        typeof themeInput.accent === 'string'
+          ? themeInput.accent
+          : fallback.theme.accent,
+
+      background:
+        typeof themeInput.background === 'string'
+          ? themeInput.background
+          : fallback.theme.background,
+
+      surface:
+        typeof themeInput.surface === 'string'
+          ? themeInput.surface
+          : fallback.theme.surface,
+
+      text:
+        typeof themeInput.text === 'string'
+          ? themeInput.text
+          : fallback.theme.text
     };
 
-    // NEU (Phase 5, optional, additiv): Präsentiert-von-Sponsor.
-    var presenterInput = isPlainObject(t.presenter) ? t.presenter : {};
+    var presenterInput =
+      isPlainObject(t.presenter)
+        ? t.presenter
+        : {};
+
     var presenter = {
-      label: typeof presenterInput.label === 'string' ? presenterInput.label : fallback.presenter.label,
-      name: typeof presenterInput.name === 'string' ? presenterInput.name : fallback.presenter.name,
-      logoUrl: typeof presenterInput.logoUrl === 'string' ? presenterInput.logoUrl : fallback.presenter.logoUrl,
+      label:
+        typeof presenterInput.label === 'string'
+          ? presenterInput.label
+          : fallback.presenter.label,
+
+      name:
+        typeof presenterInput.name === 'string'
+          ? presenterInput.name
+          : fallback.presenter.name,
+
+      logoUrl:
+        typeof presenterInput.logoUrl === 'string'
+          ? presenterInput.logoUrl
+          : fallback.presenter.logoUrl
     };
 
-    return { customerId: customerId, name: name, tagline: tagline, logoUrl: logoUrl, logoText: logoText, theme: theme, presenter: presenter };
+    return {
+      customerId: customerId,
+      name: name,
+      tagline: tagline,
+      logoUrl: logoUrl,
+      logoText: logoText,
+      theme: theme,
+      presenter: presenter
+    };
   }
 
+
+  /**
+   * Validiert die allgemeinen TV-Einstellungen.
+   */
   function validateSettingsBlock(input, warnings) {
-    var fallback = DEFAULT_TENANT_SCHEMA.settings;
+    var fallback =
+      DEFAULT_TENANT_SCHEMA.settings;
+
     if (!isPlainObject(input)) {
-      warnings.push('Feld "settings" fehlte oder war ungültig — Standardwerte verwendet.');
+      warnings.push(
+        'Feld "settings" fehlte oder war ungültig — Standardwerte verwendet.'
+      );
+
       return copy(fallback);
     }
 
-    var defaultView = VALID_VIEW_MODES.indexOf(input.defaultView) !== -1 ? input.defaultView : fallback.defaultView;
-    if (input.defaultView !== undefined && VALID_VIEW_MODES.indexOf(input.defaultView) === -1) {
-      warnings.push('Feld "settings.defaultView" hatte einen ungültigen Wert ("' + input.defaultView + '") — Standardwert "' + fallback.defaultView + '" verwendet.');
+    var defaultView =
+      VALID_VIEW_MODES.indexOf(
+        input.defaultView
+      ) !== -1
+        ? input.defaultView
+        : fallback.defaultView;
+
+    if (
+      input.defaultView !== undefined &&
+      VALID_VIEW_MODES.indexOf(
+        input.defaultView
+      ) === -1
+    ) {
+      warnings.push(
+        'Feld "settings.defaultView" hatte einen ungültigen Wert ("' +
+          input.defaultView +
+          '") — Standardwert "' +
+          fallback.defaultView +
+          '" verwendet.'
+      );
     }
 
-    var advertisingMode = VALID_ADVERTISING_MODES.indexOf(input.advertisingMode) !== -1 ? input.advertisingMode : fallback.advertisingMode;
-    if (input.advertisingMode !== undefined && VALID_ADVERTISING_MODES.indexOf(input.advertisingMode) === -1) {
-      warnings.push('Feld "settings.advertisingMode" hatte einen ungültigen Wert ("' + input.advertisingMode + '") — Standardwert "' + fallback.advertisingMode + '" verwendet.');
+    var advertisingMode =
+      VALID_ADVERTISING_MODES.indexOf(
+        input.advertisingMode
+      ) !== -1
+        ? input.advertisingMode
+        : fallback.advertisingMode;
+
+    if (
+      input.advertisingMode !== undefined &&
+      VALID_ADVERTISING_MODES.indexOf(
+        input.advertisingMode
+      ) === -1
+    ) {
+      warnings.push(
+        'Feld "settings.advertisingMode" hatte einen ungültigen Wert ("' +
+          input.advertisingMode +
+          '") — Standardwert "' +
+          fallback.advertisingMode +
+          '" verwendet.'
+      );
     }
 
     return {
       defaultView: defaultView,
-      autoplay: booleanOrDefault(input.autoplay, fallback.autoplay),
-      mutedAutoplay: booleanOrDefault(input.mutedAutoplay, fallback.mutedAutoplay),
-      loopPlaylist: booleanOrDefault(input.loopPlaylist, fallback.loopPlaylist),
-      advertisingMode: advertisingMode,
+
+      autoplay:
+        booleanOrDefault(
+          input.autoplay,
+          fallback.autoplay
+        ),
+
+      mutedAutoplay:
+        booleanOrDefault(
+          input.mutedAutoplay,
+          fallback.mutedAutoplay
+        ),
+
+      loopPlaylist:
+        booleanOrDefault(
+          input.loopPlaylist,
+          fallback.loopPlaylist
+        ),
+
+      advertisingMode:
+        advertisingMode
     };
   }
 
+
+  /**
+   * Validiert den bestehenden Live-Block.
+   */
   function validateLiveBlock(input, warnings) {
-    var fallback = DEFAULT_TENANT_SCHEMA.live;
+    var fallback =
+      DEFAULT_TENANT_SCHEMA.live;
+
     if (!isPlainObject(input)) {
-      warnings.push('Feld "live" fehlte oder war ungültig — Standardwerte verwendet.');
+      warnings.push(
+        'Feld "live" fehlte oder war ungültig — Standardwerte verwendet.'
+      );
+
       return copy(fallback);
     }
+
     return {
-      enabled: booleanOrDefault(input.enabled, fallback.enabled),
-      title: typeof input.title === 'string' ? input.title : fallback.title,
-      date: typeof input.date === 'string' ? input.date : fallback.date,
-      time: typeof input.time === 'string' ? input.time : fallback.time,
+      enabled:
+        booleanOrDefault(
+          input.enabled,
+          fallback.enabled
+        ),
+
+      title:
+        typeof input.title === 'string'
+          ? input.title
+          : fallback.title,
+
+      date:
+        typeof input.date === 'string'
+          ? input.date
+          : fallback.date,
+
+      time:
+        typeof input.time === 'string'
+          ? input.time
+          : fallback.time
     };
   }
 
-  // --- Item-Validierung (Phase 5, neu) -----------------------------
-  // Ungültige EINZELNE Einträge werden übersprungen (mit Hinweis),
-  // nicht die ganze Liste verworfen — "kein JS-Abbruch, restliche
-  // Anwendung bleibt bedienbar" (bereits bewährtes Prinzip aus Schritt 3).
 
+  // ---------------------------------------------------------------------------
+  // Video-Validierung
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Validiert alle Videos.
+   *
+   * Bestehende Felder:
+   * - id
+   * - title
+   * - description
+   * - category
+   * - durationLabel
+   * - src
+   * - badge
+   *
+   * Additive Felder:
+   * - poster
+   * - team
+   * - publication
+   * - content
+   */
   function validateVideoItems(value, warnings) {
-    var items = validateArrayField(value, 'videos', warnings);
+    var items =
+      validateArrayField(
+        value,
+        'videos',
+        warnings
+      );
+
     var result = [];
+
     items.forEach(function (item, index) {
-      if (!isPlainObject(item) || !nonEmptyStringSilent(item.src) || !nonEmptyStringSilent(item.title)) {
-        warnings.push('Eintrag videos[' + index + '] ungültig (title/src fehlen) — übersprungen.');
+      if (
+        !isPlainObject(item) ||
+        !nonEmptyStringSilent(item.src) ||
+        !nonEmptyStringSilent(item.title)
+      ) {
+        warnings.push(
+          'Eintrag videos[' +
+            index +
+            '] ungültig (title/src fehlen) — übersprungen.'
+        );
+
         return;
       }
+
       result.push({
-        id: typeof item.id === 'string' ? item.id : 'video-' + index,
-        title: item.title,
-        description: typeof item.description === 'string' ? item.description : '',
-        category: typeof item.category === 'string' ? item.category : '',
-        durationLabel: typeof item.durationLabel === 'string' ? item.durationLabel : '--:--',
-        src: item.src,
-        badge: typeof item.badge === 'string' ? item.badge : null,
+        id:
+          typeof item.id === 'string'
+            ? item.id
+            : 'video-' + index,
+
+        title:
+          item.title,
+
+        description:
+          typeof item.description === 'string'
+            ? item.description
+            : '',
+
+        category:
+          typeof item.category === 'string'
+            ? item.category
+            : '',
+
+        durationLabel:
+          typeof item.durationLabel === 'string'
+            ? item.durationLabel
+            : '--:--',
+
+        src:
+          item.src,
+
+        badge:
+          typeof item.badge === 'string'
+            ? item.badge
+            : null,
+
+        poster:
+          typeof item.poster === 'string'
+            ? item.poster
+            : '',
+
+        team:
+          validateVideoTeam(
+            item.team
+          ),
+
+        publication:
+          validateVideoPublication(
+            item.publication
+          ),
+
+        content:
+          validateVideoContent(
+            item.content
+          )
       });
     });
+
     return result;
   }
+
+
+  /**
+   * Validiert die Mannschaftsdaten eines Videos.
+   */
+  function validateVideoTeam(input) {
+    var team =
+      isPlainObject(input)
+        ? input
+        : {};
+
+    return {
+      id:
+        typeof team.id === 'string'
+          ? team.id
+          : '',
+
+      name:
+        typeof team.name === 'string'
+          ? team.name
+          : '',
+
+      leagueId:
+        typeof team.leagueId === 'string'
+          ? team.leagueId
+          : ''
+    };
+  }
+
+
+  /**
+   * Validiert Sprache, TV-Freigabe und TV-Aktivität.
+   */
+  function validateVideoPublication(input) {
+    var publication =
+      isPlainObject(input)
+        ? input
+        : {};
+
+    var language =
+      typeof publication.language === 'string'
+        ? publication.language
+          .trim()
+          .toUpperCase()
+        : 'DE';
+
+    if (
+      ['DE', 'HU', 'EN'].indexOf(
+        language
+      ) === -1
+    ) {
+      language = 'DE';
+    }
+
+    var release =
+      typeof publication.release === 'string'
+        ? publication.release
+          .trim()
+          .toUpperCase()
+        : 'VEREIN';
+
+    if (
+      ['VEREIN', 'BBK', 'WBV', 'DBB'].indexOf(
+        release
+      ) === -1
+    ) {
+      release = 'VEREIN';
+    }
+
+    return {
+      language: language,
+      release: release,
+
+      active:
+        typeof publication.active === 'boolean'
+          ? publication.active
+          : true
+    };
+  }
+
+
+  /**
+   * Validiert Inhaltstyp, Quelle und Live-Status.
+   */
+  function validateVideoContent(input) {
+    var content =
+      isPlainObject(input)
+        ? input
+        : {};
+
+    var type =
+      typeof content.type === 'string'
+        ? content.type
+          .trim()
+          .toUpperCase()
+        : 'VIDEO';
+
+    if (
+      ['VIDEO', 'LIVE', 'HIGHLIGHT'].indexOf(
+        type
+      ) === -1
+    ) {
+      type = 'VIDEO';
+    }
+
+    var source =
+      typeof content.source === 'string'
+        ? content.source
+          .trim()
+          .toUpperCase()
+        : 'MANUELL';
+
+    if (
+      [
+        'MANUELL',
+        'ONLANG_LIVE',
+        'SMART_HIGHLIGHT'
+      ].indexOf(source) === -1
+    ) {
+      source = 'MANUELL';
+    }
+
+    var liveStatus =
+      typeof content.liveStatus === 'string'
+        ? content.liveStatus
+          .trim()
+          .toUpperCase()
+        : 'KEIN_LIVE';
+
+    if (
+      [
+        'KEIN_LIVE',
+        'LIVE',
+        'BEENDET'
+      ].indexOf(liveStatus) === -1
+    ) {
+      liveStatus = 'KEIN_LIVE';
+    }
+
+    return {
+      type: type,
+      source: source,
+      liveStatus: liveStatus
+    };
+  }
+
+
+  // ---------------------------------------------------------------------------
+  // Kategorien
+  // ---------------------------------------------------------------------------
 
   function validateCategoryItems(value, warnings) {
-    var items = validateArrayField(value, 'categories', warnings);
+    var items =
+      validateArrayField(
+        value,
+        'categories',
+        warnings
+      );
+
     var result = [];
+
     items.forEach(function (item, index) {
-      if (!isPlainObject(item) || !nonEmptyStringSilent(item.label)) {
-        warnings.push('Eintrag categories[' + index + '] ungültig (label fehlt) — übersprungen.');
+      if (
+        !isPlainObject(item) ||
+        !nonEmptyStringSilent(item.label)
+      ) {
+        warnings.push(
+          'Eintrag categories[' +
+            index +
+            '] ungültig (label fehlt) — übersprungen.'
+        );
+
         return;
       }
+
       result.push({
-        id: typeof item.id === 'string' ? item.id : 'category-' + index,
-        icon: typeof item.icon === 'string' ? item.icon : '',
-        label: item.label,
-        description: typeof item.description === 'string' ? item.description : '',
+        id:
+          typeof item.id === 'string'
+            ? item.id
+            : 'category-' + index,
+
+        icon:
+          typeof item.icon === 'string'
+            ? item.icon
+            : '',
+
+        label:
+          item.label,
+
+        description:
+          typeof item.description === 'string'
+            ? item.description
+            : ''
       });
     });
+
     return result;
   }
+
+
+  // ---------------------------------------------------------------------------
+  // Partner
+  // ---------------------------------------------------------------------------
 
   function validatePartnerItems(value, warnings) {
-    var items = validateArrayField(value, 'partners', warnings);
+    var items =
+      validateArrayField(
+        value,
+        'partners',
+        warnings
+      );
+
     var result = [];
+
     items.forEach(function (item, index) {
-      if (!isPlainObject(item) || !nonEmptyStringSilent(item.name)) {
-        warnings.push('Eintrag partners[' + index + '] ungültig (name fehlt) — übersprungen.');
+      if (
+        !isPlainObject(item) ||
+        !nonEmptyStringSilent(item.name)
+      ) {
+        warnings.push(
+          'Eintrag partners[' +
+            index +
+            '] ungültig (name fehlt) — übersprungen.'
+        );
+
         return;
       }
+
       result.push({
-        id: typeof item.id === 'string' ? item.id : 'partner-' + index,
-        name: item.name,
-        logoUrl: typeof item.logoUrl === 'string' ? item.logoUrl : '',
-        subtitle: typeof item.subtitle === 'string' ? item.subtitle : '',
+        id:
+          typeof item.id === 'string'
+            ? item.id
+            : 'partner-' + index,
+
+        name:
+          item.name,
+
+        logoUrl:
+          typeof item.logoUrl === 'string'
+            ? item.logoUrl
+            : '',
+
+        subtitle:
+          typeof item.subtitle === 'string'
+            ? item.subtitle
+            : ''
       });
     });
+
     return result;
   }
 
-  function validateAdvertisementItems(value, warnings) {
-    var items = validateArrayField(value, 'advertisements', warnings);
+
+  // ---------------------------------------------------------------------------
+  // Werbung
+  // ---------------------------------------------------------------------------
+
+  function validateAdvertisementItems(
+    value,
+    warnings
+  ) {
+    var items =
+      validateArrayField(
+        value,
+        'advertisements',
+        warnings
+      );
+
     var result = [];
+
     items.forEach(function (item, index) {
-      if (!isPlainObject(item) || !nonEmptyStringSilent(item.src) || !nonEmptyStringSilent(item.title)) {
-        warnings.push('Eintrag advertisements[' + index + '] ungültig (title/src fehlen) — übersprungen.');
+      if (
+        !isPlainObject(item) ||
+        !nonEmptyStringSilent(item.src) ||
+        !nonEmptyStringSilent(item.title)
+      ) {
+        warnings.push(
+          'Eintrag advertisements[' +
+            index +
+            '] ungültig (title/src fehlen) — übersprungen.'
+        );
+
         return;
       }
+
       result.push({
-        id: typeof item.id === 'string' ? item.id : 'ad-' + index,
-        title: item.title,
-        sponsor: typeof item.sponsor === 'string' ? item.sponsor : '',
-        durationLabel: typeof item.durationLabel === 'string' ? item.durationLabel : '--:--',
-        src: item.src,
-        active: booleanOrDefault(item.active, false),
+        id:
+          typeof item.id === 'string'
+            ? item.id
+            : 'ad-' + index,
+
+        title:
+          item.title,
+
+        sponsor:
+          typeof item.sponsor === 'string'
+            ? item.sponsor
+            : '',
+
+        durationLabel:
+          typeof item.durationLabel === 'string'
+            ? item.durationLabel
+            : '--:--',
+
+        src:
+          item.src,
+
+        active:
+          booleanOrDefault(
+            item.active,
+            false
+          )
       });
     });
+
     return result;
   }
 
-  function validateArrayField(value, fieldName, warnings) {
-    if (Array.isArray(value)) return value;
-    if (value !== undefined) {
-      warnings.push('Feld "' + fieldName + '" war kein Array — leeres Array verwendet.');
+
+  // ---------------------------------------------------------------------------
+  // Hilfsfunktionen
+  // ---------------------------------------------------------------------------
+
+  function validateArrayField(
+    value,
+    fieldName,
+    warnings
+  ) {
+    if (Array.isArray(value)) {
+      return value;
     }
+
+    if (value !== undefined) {
+      warnings.push(
+        'Feld "' +
+          fieldName +
+          '" war kein Array — leeres Array verwendet.'
+      );
+    }
+
     return [];
   }
 
-  function nonEmptyString(value, fallbackValue, fieldName, warnings) {
-    if (typeof value === 'string' && value.trim() !== '') return value.trim();
-    warnings.push('Feld "' + fieldName + '" fehlte oder war leer — Standardwert "' + fallbackValue + '" verwendet.');
+
+  function nonEmptyString(
+    value,
+    fallbackValue,
+    fieldName,
+    warnings
+  ) {
+    if (
+      typeof value === 'string' &&
+      value.trim() !== ''
+    ) {
+      return value.trim();
+    }
+
+    warnings.push(
+      'Feld "' +
+        fieldName +
+        '" fehlte oder war leer — Standardwert "' +
+        fallbackValue +
+        '" verwendet.'
+    );
+
     return fallbackValue;
   }
 
+
   function nonEmptyStringSilent(value) {
-    return typeof value === 'string' && value.trim() !== '';
+    return (
+      typeof value === 'string' &&
+      value.trim() !== ''
+    );
   }
 
-  function booleanOrDefault(value, fallbackValue) {
-    return typeof value === 'boolean' ? value : fallbackValue;
+
+  function booleanOrDefault(
+    value,
+    fallbackValue
+  ) {
+    return typeof value === 'boolean'
+      ? value
+      : fallbackValue;
   }
+
 
   function isPlainObject(value) {
-    return typeof value === 'object' && value !== null && !Array.isArray(value);
+    return (
+      typeof value === 'object' &&
+      value !== null &&
+      !Array.isArray(value)
+    );
   }
+
 
   function copy(obj) {
     var result = {};
+
     for (var key in obj) {
-      if (Object.prototype.hasOwnProperty.call(obj, key)) result[key] = obj[key];
+      if (
+        Object.prototype.hasOwnProperty.call(
+          obj,
+          key
+        )
+      ) {
+        result[key] = obj[key];
+      }
     }
+
     return result;
   }
 
-  ns.TenantValidator = { validateTenantData: validateTenantData };
+
+  ns.TenantValidator = {
+    validateTenantData:
+      validateTenantData
+  };
+
 })(window.ONLANG.tenant);
