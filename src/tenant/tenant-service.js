@@ -350,10 +350,6 @@ window.ONLANG.tenantRegistry =
           ? advertising.items
           : [],
 
-      /*
-       * Die aktuelle Bootstrap API liefert diese Bereiche noch nicht.
-       * Leere Arrays halten das bestehende Datenmodell stabil.
-       */
       categories: [],
       partners: []
     };
@@ -632,6 +628,21 @@ window.ONLANG.tenantRegistry =
 
     return (
       'Bootstrap API lieferte keine erfolgreiche Antwort.'
+    );
+  }
+
+
+  /**
+   * Prüft, ob ein Wert ein einfaches JavaScript-Objekt ist.
+   *
+   * @param {*} value
+   * @returns {boolean}
+   */
+  function isPlainObject(value) {
+    return (
+      typeof value === 'object' &&
+      value !== null &&
+      !Array.isArray(value)
     );
   }
 
