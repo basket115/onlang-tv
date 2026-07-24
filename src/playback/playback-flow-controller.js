@@ -61,6 +61,10 @@ window.ONLANG.playback = window.ONLANG.playback || {};
     // Welcher Playlist-Index nach dem NÄCHSTEN Spot geladen werden soll
     // (siehe startAdvertisement()/onPlayerEnded()).
     var pendingContentIndex = null;
+    // true, wenn das aktuell geladene Medium (Spot oder Inhalt) bereits
+    // zum Start angefordert wurde, aber das echte Player-Event 'play'
+    // noch nicht eingetroffen ist (z. B. bei blockiertem Autoplay).
+    var mediaStartPending = false;
 
     var changeListeners = [];
 
@@ -96,6 +100,7 @@ window.ONLANG.playback = window.ONLANG.playback || {};
       // Player-Events "ended" und "error" reagiert und daraus den
       // Ablauf steuert (siehe Anweisung, Punkt 16: "genau eine
       // eindeutig verantwortliche Ablaufsteuerung").
+      player.on('play', onPlayerPlay);
       player.on('ended', onPlayerEnded);
       player.on('error', onPlayerError);
 
@@ -146,9 +151,8 @@ window.ONLANG.playback = window.ONLANG.playback || {};
       setFlowState(STATES.AD_READY);
 
       player.load({ source: ad.src });
-      advertising.setStatus(advertising.STATUSES.PLAYING);
+      mediaStartPending = true;
       player.play();
-      setFlowState(STATES.AD_PLAYING);
     }
 
     function startContent(index) {
@@ -171,13 +175,27 @@ window.ONLANG.playback = window.ONLANG.playback || {};
       setFlowState(STATES.CONTENT_READY);
 
       player.load({ source: item.src });
+      mediaStartPending = true;
       player.play();
-      setFlowState(STATES.CONTENT_PLAYING);
     }
 
     // ------------------------------------------------------------------
     // Reaktion auf echte Player-Events (Anweisung, Punkt 7-9, 16)
     // ------------------------------------------------------------------
+
+    function onPlayerPlay() {
+      mediaStartPending = false;
+
+      if (currentMode === MODES.ADVERTISEMENT) {
+        advertising.setStatus(advertising.STATUSES.PLAYING);
+        setFlowState(STATES.AD_PLAYING);
+        return;
+      }
+
+      if (currentMode === MODES.CONTENT) {
+        setFlowState(STATES.CONTENT_PLAYING);
+      }
+    }
 
     function onPlayerEnded() {
       if (currentMode === MODES.ADVERTISEMENT) {
@@ -225,9 +243,22 @@ window.ONLANG.playback = window.ONLANG.playback || {};
      * exakt an derselben Stelle fort, ohne neu zu laden (Punkt 10).
      */
     function play() {
+      if (flowState === STATES.AD_READY) {
+        mediaStartPending = true;
+        player.play();
+        return;
+      }
+
       if (flowState === STATES.CONTENT_READY) {
-        pendingContentIndex = playlist.getCurrentIndex();
-        startAdvertisement();
+        // CONTENT_READY kann zwei Bedeutungen haben:
+        // 1) initial ausgewählter Inhalt -> zuerst Spot starten
+        // 2) Inhalt nach Spot bereits geladen, aber Autoplay blockiert
+        if (mediaStartPending) {
+          player.play();
+        } else {
+          pendingContentIndex = playlist.getCurrentIndex();
+          startAdvertisement();
+        }
         return;
       }
 
@@ -261,6 +292,7 @@ window.ONLANG.playback = window.ONLANG.playback || {};
     function stop() {
       player.stop();
       pendingContentIndex = null;
+      mediaStartPending = false;
 
       var item = playlist.getCurrentItem();
       currentMode = item ? MODES.CONTENT : MODES.NONE;
@@ -276,6 +308,7 @@ window.ONLANG.playback = window.ONLANG.playback || {};
       player.stop();
       currentMode = MODES.NONE;
       pendingContentIndex = null;
+      mediaStartPending = false;
 
       playlist.select(index);
 
