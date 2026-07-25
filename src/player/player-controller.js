@@ -47,6 +47,14 @@ window.ONLANG.player = window.ONLANG.player || {};
     var STATES = state.STATES;
     var timeListeners = [];
     var eventBinding = null;
+    var destroyed = false;
+
+    // Autoplay-Blockierung ist KEIN Medienfehler und KEIN Roh-Event des
+    // <video>-Elements — sie entsteht ausschließlich aus der Ablehnung
+    // des von play() gelieferten Promise (NotAllowedError). Sie wird
+    // deshalb bewusst getrennt von den sechs erlaubten Roh-Events
+    // gemeldet, damit die Ablaufsteuerung sie unterscheiden kann.
+    var playBlockedListeners = [];
 
     // --- Generisches Event-Abo für externe Module (z.B. Playlist,
     //     siehe docs/ARCHITECTURE.md, Abschnitt "Media Player —
@@ -170,14 +178,81 @@ window.ONLANG.player = window.ONLANG.player || {};
     }
 
     function play() {
+      if (destroyed) return;
       var playPromise = videoEl.play();
       if (playPromise && typeof playPromise.catch === 'function') {
-        playPromise.catch(function () {
-          // Wiedergabe konnte nicht gestartet werden (z.B. keine gültige
-          // Quelle geladen) -> ERROR, kein unbehandelter Promise-Fehler.
+        playPromise.catch(function (error) {
+          if (destroyed) return;
+
+          // Bugfix Demo 1.0: Bisher wurde JEDE Ablehnung als Medienfehler
+          // behandelt. Die mit Abstand häufigste Ablehnung ist aber
+          // NotAllowedError — der Browser hat die automatische Wiedergabe
+          // untersagt. Das Medium ist dabei völlig in Ordnung; es fehlt
+          // nur eine Nutzeraktion. Wird das als ERROR verbucht, bleibt
+          // der Ablauf stehen und die Seite wirkt tot.
+          var name = error && error.name ? error.name : '';
+          if (name === 'NotAllowedError' || name === 'SecurityError') {
+            for (var i = 0; i < playBlockedListeners.length; i += 1) {
+              playBlockedListeners[i]();
+            }
+            return;
+          }
+
+          // Alles andere (z.B. NotSupportedError) ist ein echter Fehler.
           state.set(STATES.ERROR);
         });
       }
+    }
+
+    /**
+     * Abo für "Autoplay wurde vom Browser blockiert". Rein additiv und
+     * bewusst kein Teil von on(), weil es kein natives <video>-Event ist.
+     * @param {Function} callback
+     */
+    function onPlayBlocked(callback) {
+      if (typeof callback !== 'function') return;
+      playBlockedListeners.push(callback);
+    }
+
+    /**
+     * Beendet diesen Controller endgültig: Wiedergabe stoppen, Quelle
+     * lösen, alle nativen Event-Listener abmelden, alle Abos verwerfen.
+     *
+     * Zwingend notwendig beim Kundenwechsel: Ein <video>-Element, das nur
+     * per innerHTML aus dem DOM entfernt wird, spielt im Browser WEITER
+     * (inklusive Ton). Ohne destroy() liefen nach jedem Wechsel ein
+     * zusätzlicher Player und eine zusätzliche Ablaufsteuerung parallel.
+     */
+    function destroy() {
+      if (destroyed) return;
+      destroyed = true;
+
+      try {
+        videoEl.pause();
+      } catch (e) { /* Element evtl. bereits aus dem DOM entfernt */ }
+
+      // removeAttribute + load() beendet einen laufenden Netzwerkabruf
+      // zuverlässig. videoEl.src = '' würde stattdessen die Seiten-URL
+      // laden und einen unnötigen Medienfehler erzeugen.
+      try {
+        videoEl.removeAttribute('src');
+        videoEl.load();
+      } catch (e) { /* siehe oben */ }
+
+      if (eventBinding) {
+        eventBinding.unbind();
+        eventBinding = null;
+      }
+
+      timeListeners.length = 0;
+      playBlockedListeners.length = 0;
+      Object.keys(rawEventListeners).forEach(function (name) {
+        rawEventListeners[name].length = 0;
+      });
+    }
+
+    function isDestroyed() {
+      return destroyed;
     }
 
     function pause() {
@@ -251,6 +326,9 @@ window.ONLANG.player = window.ONLANG.player || {};
       },
       // Generisches Event-Abo für externe Module, siehe on()/emit() oben.
       on: on,
+      onPlayBlocked: onPlayBlocked,
+      destroy: destroy,
+      isDestroyed: isDestroyed,
       getErrorMessage: getErrorMessage,
       STATES: STATES,
     };
