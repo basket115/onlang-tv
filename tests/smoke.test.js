@@ -13,6 +13,7 @@ import '../src/tenant/tenant-schema.js';
 import '../src/tenant/tenant-validator.js';
 import '../public/demo-data/default.js';
 import '../public/demo-data/bbk-duesseldorf.js';
+import '../public/demo-data/scorpions-sggierath.js';
 import '../public/demo-data/verein-blau-weiss.js';
 
 const validateTenantData = window.ONLANG.tenant.TenantValidator.validateTenantData;
@@ -20,7 +21,7 @@ const registry = window.ONLANG.tenantRegistry;
 
 console.log('smoke.test.js');
 
-['DEFAULT', 'bbk-duesseldorf', 'verein-blau-weiss'].forEach((customerId) => {
+['DEFAULT', 'bbk-duesseldorf', 'scorpions-sggierath', 'verein-blau-weiss'].forEach((customerId) => {
   const raw = registry[customerId];
   if (!raw) {
     console.error(`  ✗ Kunden-ID "${customerId}" nicht in der Registry gefunden`);
