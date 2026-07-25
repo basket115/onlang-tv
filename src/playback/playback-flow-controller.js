@@ -65,12 +65,28 @@ window.ONLANG.playback = window.ONLANG.playback || {};
     // zum Start angefordert wurde, aber das echte Player-Event 'play'
     // noch nicht eingetroffen ist (z. B. bei blockiertem Autoplay).
     var mediaStartPending = false;
+    // true, sobald der Browser die automatische Wiedergabe abgelehnt hat
+    // und genau eine Nutzeraktion zum Start fehlt. KEIN Fehlerzustand.
+    var startBlocked = false;
+    var destroyed = false;
+    // true, sobald ein Sendebetrieb tatsaechlich angefordert wurde.
+    //
+    // Bugfix Demo 1.0: getNowPlayingInfo() richtete sich allein nach
+    // currentMode. Ein lediglich GELADENER, aber nicht gestarteter
+    // Inhalt wurde dadurch bereits als "JETZT LÄUFT" ausgewiesen,
+    // obwohl nichts lief. Die Anzeige muss zum tatsaechlichen
+    // Sendebetrieb passen (Zielbild Punkt 4).
+    var programmeActive = false;
 
     var changeListeners = [];
 
     function notifyChange() {
-      for (var i = 0; i < changeListeners.length; i += 1) {
-        changeListeners[i]();
+      if (destroyed) return;
+      // Kopie: ein Listener darf sich während der Benachrichtigung
+      // abmelden, ohne die laufende Schleife zu beschädigen.
+      var current = changeListeners.slice();
+      for (var i = 0; i < current.length; i += 1) {
+        current[i]();
       }
     }
 
@@ -80,6 +96,16 @@ window.ONLANG.playback = window.ONLANG.playback || {};
       }
       flowState = next;
       notifyChange();
+    }
+
+    /**
+     * Fordert die Wiedergabe des bereits geladenen Mediums an und merkt
+     * sich, dass der echte "play"-Event noch aussteht.
+     */
+    function requestPlay() {
+      if (destroyed) return;
+      mediaStartPending = true;
+      player.play();
     }
 
     /**
@@ -103,24 +129,44 @@ window.ONLANG.playback = window.ONLANG.playback || {};
       player.on('play', onPlayerPlay);
       player.on('ended', onPlayerEnded);
       player.on('error', onPlayerError);
+      if (typeof player.onPlayBlocked === 'function') {
+        player.onPlayBlocked(onPlayBlocked);
+      }
 
       playlist.load(options.contentItems || []);
       advertising.load(options.advertisements || []);
 
-      // Startzustand (Anweisung, Punkt 6): Video 1 auswählen und laden,
-      // NICHTS automatisch abspielen.
       var firstItem = playlist.getCurrentItem();
       if (playlist.getStatus() === playlist.STATUSES.ERROR) {
         setFlowState(STATES.ERROR);
         return;
       }
-      if (firstItem) {
-        player.load({ source: firstItem.src });
-        currentMode = MODES.CONTENT;
-        setFlowState(STATES.CONTENT_READY);
-      } else {
+
+      if (!firstItem) {
+        // Leere Playlist: kein Sendebetrieb moeglich. Der Ablauf bleibt
+        // im Leerlauf, playlist-ui.js zeigt den Leerzustand an. Es wird
+        // bewusst KEIN Fehler gemeldet — die Daten sind gueltig, nur leer.
         setFlowState(STATES.IDLE);
+        return;
       }
+
+      // Bugfix Demo 1.0: Beim automatischen Start wurde bisher ZUERST
+      // das Inhaltsvideo in das <video>-Element geladen und unmittelbar
+      // danach der Spot — zwei load()-Aufrufe im selben Tick auf
+      // dasselbe Element. Der abgebrochene erste Ladevorgang kann je
+      // nach Browser ein zusätzliches Fehlerereignis auslösen und den
+      // Ablauf sofort nach dem Start in ERROR versetzen. Beim Autostart
+      // wird deshalb ausschließlich der Spot geladen.
+      currentMode = MODES.CONTENT;
+      if (options.autostart) {
+        setFlowState(STATES.CONTENT_READY);
+        pendingContentIndex = playlist.getCurrentIndex();
+        startAdvertisement();
+        return;
+      }
+
+      player.load({ source: firstItem.src });
+      setFlowState(STATES.CONTENT_READY);
     }
 
     // ------------------------------------------------------------------
@@ -128,6 +174,8 @@ window.ONLANG.playback = window.ONLANG.playback || {};
     // ------------------------------------------------------------------
 
     function startAdvertisement() {
+      if (destroyed) return;
+      programmeActive = true;
       advertising.prepare();
 
       if (!advertising.hasActiveAdvertisement()) {
@@ -151,11 +199,12 @@ window.ONLANG.playback = window.ONLANG.playback || {};
       setFlowState(STATES.AD_READY);
 
       player.load({ source: ad.src });
-      mediaStartPending = true;
-      player.play();
+      requestPlay();
     }
 
     function startContent(index) {
+      if (destroyed) return;
+      programmeActive = true;
       playlist.select(index);
 
       if (playlist.getStatus() === playlist.STATUSES.ERROR) {
@@ -175,8 +224,7 @@ window.ONLANG.playback = window.ONLANG.playback || {};
       setFlowState(STATES.CONTENT_READY);
 
       player.load({ source: item.src });
-      mediaStartPending = true;
-      player.play();
+      requestPlay();
     }
 
     // ------------------------------------------------------------------
@@ -184,7 +232,9 @@ window.ONLANG.playback = window.ONLANG.playback || {};
     // ------------------------------------------------------------------
 
     function onPlayerPlay() {
+      if (destroyed) return;
       mediaStartPending = false;
+      startBlocked = false;
 
       if (currentMode === MODES.ADVERTISEMENT) {
         advertising.setStatus(advertising.STATUSES.PLAYING);
@@ -198,6 +248,7 @@ window.ONLANG.playback = window.ONLANG.playback || {};
     }
 
     function onPlayerEnded() {
+      if (destroyed) return;
       if (currentMode === MODES.ADVERTISEMENT) {
         // Spot beendet -> ausgewähltes Inhaltsvideo laden und
         // automatisch starten (Punkt 7 + 8).
@@ -224,6 +275,7 @@ window.ONLANG.playback = window.ONLANG.playback || {};
     }
 
     function onPlayerError() {
+      if (destroyed) return;
       if (currentMode === MODES.ADVERTISEMENT) {
         advertising.setStatus(advertising.STATUSES.ERROR);
       } else if (currentMode === MODES.CONTENT) {
@@ -231,6 +283,50 @@ window.ONLANG.playback = window.ONLANG.playback || {};
       }
       currentMode = MODES.NONE;
       setFlowState(STATES.ERROR);
+    }
+
+    /**
+     * Der Browser hat die automatische Wiedergabe abgelehnt. Das Medium
+     * ist geladen und gültig — es fehlt ausschließlich eine Nutzeraktion.
+     * Der Ablaufzustand bleibt deshalb bewusst auf AD_READY bzw.
+     * CONTENT_READY stehen und wird NICHT auf ERROR gesetzt.
+     */
+    function onPlayBlocked() {
+      if (destroyed) return;
+      startBlocked = true;
+      mediaStartPending = true;
+      notifyChange();
+    }
+
+    /**
+     * Wird aus einer echten Nutzeraktion heraus aufgerufen (Klick auf die
+     * Aktivierungsfläche). Startet das bereits geladene Medium erneut.
+     */
+    function resumeAfterBlock() {
+      if (destroyed) return;
+      startBlocked = false;
+      requestPlay();
+    }
+
+    function isStartBlocked() {
+      return startBlocked;
+    }
+
+    /**
+     * Beendet diese Ablaufsteuerung endgültig. Danach löst kein
+     * eintreffendes Player-Ereignis mehr einen Ablaufschritt aus.
+     * Der Player selbst wird von main.js separat beendet.
+     */
+    function destroy() {
+      if (destroyed) return;
+      destroyed = true;
+      changeListeners.length = 0;
+      programmeActive = false;
+      pendingContentIndex = null;
+      mediaStartPending = false;
+      startBlocked = false;
+      currentMode = MODES.NONE;
+      flowState = STATES.IDLE;
     }
 
     // ------------------------------------------------------------------
@@ -243,9 +339,12 @@ window.ONLANG.playback = window.ONLANG.playback || {};
      * exakt an derselben Stelle fort, ohne neu zu laden (Punkt 10).
      */
     function play() {
+      if (destroyed) return;
+      startBlocked = false;
+      programmeActive = true;
+
       if (flowState === STATES.AD_READY) {
-        mediaStartPending = true;
-        player.play();
+        requestPlay();
         return;
       }
 
@@ -291,6 +390,7 @@ window.ONLANG.playback = window.ONLANG.playback || {};
      */
     function stop() {
       player.stop();
+      programmeActive = false;
       pendingContentIndex = null;
       mediaStartPending = false;
 
@@ -307,6 +407,7 @@ window.ONLANG.playback = window.ONLANG.playback || {};
     function selectContent(index) {
       player.stop();
       currentMode = MODES.NONE;
+      programmeActive = false;
       pendingContentIndex = null;
       mediaStartPending = false;
 
@@ -340,6 +441,9 @@ window.ONLANG.playback = window.ONLANG.playback || {};
      * kennen darf.
      */
     function getNowPlayingInfo() {
+      if (!programmeActive) {
+        return { tag: '', title: '' };
+      }
       if (currentMode === MODES.ADVERTISEMENT) {
         var ad = advertising.getActiveAdvertisement();
         return { tag: 'WERBUNG', title: ad && ad.title ? ad.title : 'ONLANG präsentiert' };
@@ -362,6 +466,10 @@ window.ONLANG.playback = window.ONLANG.playback || {};
       var ad;
       var nextIndex;
       var nextItem;
+
+      if (!programmeActive) {
+        return { nextTag: '', nextTitle: '', afterTag: '', afterTitle: '' };
+      }
 
       if (currentMode === MODES.ADVERTISEMENT) {
         nextIndex = pendingContentIndex !== null ? pendingContentIndex : playlist.getCurrentIndex();
@@ -397,6 +505,9 @@ window.ONLANG.playback = window.ONLANG.playback || {};
       selectContent: selectContent,
       getState: getState,
       getCurrentMode: getCurrentMode,
+      isStartBlocked: isStartBlocked,
+      resumeAfterBlock: resumeAfterBlock,
+      destroy: destroy,
       getNowPlayingInfo: getNowPlayingInfo,
       getUpcomingInfo: getUpcomingInfo,
       onChange: function (fn) {
