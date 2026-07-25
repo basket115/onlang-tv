@@ -477,3 +477,87 @@ Einstiegsseite eines Webprojekts (direkt neben `README.md` sichtbar,
 kein Suchen in Unterordnern nötig). Alle anderen Ordner
 (`public/assets/`, `public/demo-data/`, `src/...`, `tests/`, `docs/`)
 entsprechen exakt der vorgegebenen Struktur.
+
+---
+
+## Session-Lebenszyklus (Demo 1.0)
+
+`main.js` verwaltet zu jedem Zeitpunkt **genau eine** Session. Eine
+Session besteht aus Ansicht, Player, Playlist, Werbung und
+Ablaufsteuerung eines einzigen Mandanten.
+
+```
+bootstrap(kundenId)
+  |
+  +-- bootstrapToken hochzählen
+  +-- endCurrentSession()        <- sofort, nicht erst nach dem Laden
+  +-- loadTenantData(...)        <- asynchron
+        |
+        +-- veraltetes Ergebnis? -> verwerfen
+        +-- buildSession(result)
+```
+
+### Warum `endCurrentSession()` zwingend nötig ist
+
+Ein `<video>`-Element, das nur per `innerHTML` aus dem DOM entfernt wird,
+**spielt im Browser weiter** — inklusive Ton. Ohne ausdrückliches
+Beenden lief nach jedem Kundenwechsel ein zusätzlicher Player mit einer
+zusätzlichen Ablaufsteuerung parallel.
+
+`endCurrentSession()` führt in dieser Reihenfolge aus:
+
+1. alle Aufräumfunktionen der Session (Event-Listener, Sekundentakt)
+2. `flow.destroy()` — kein eintreffendes Player-Ereignis löst danach
+   noch einen Ablaufschritt aus
+3. `player.destroy()` — Wiedergabe anhalten, `src` lösen, alle nativen
+   Listener abmelden
+
+Die Reihenfolge ist verbindlich: Wird der Player zuerst beendet, kann
+sein letztes `pause`- oder `error`-Ereignis noch einen Ablaufschritt der
+alten Session auslösen.
+
+### Wettlaufsituationen
+
+`loadTenantData()` ist asynchron. Bei mehreren schnellen Wechseln kann
+eine ältere Antwort nach einer neueren eintreffen. Jeder
+`bootstrap()`-Aufruf erhält deshalb eine laufende Nummer; nur das
+Ergebnis des zuletzt gestarteten Aufrufs darf die Ansicht aufbauen.
+
+## Autoplay
+
+Browser erlauben automatische Wiedergabe zuverlässig nur stumm. ONLANG TV
+startet daher grundsätzlich stumm; der erste Klick irgendwo in der
+Anwendung schaltet den Ton frei.
+
+Lehnt der Browser die Wiedergabe vollständig ab, liefert `video.play()`
+ein abgelehntes Promise mit `NotAllowedError`. Das ist **kein**
+Medienfehler — die Datei ist in Ordnung, es fehlt nur eine Nutzeraktion.
+
+`player-controller.js` meldet diesen Fall getrennt über
+`onPlayBlocked()`. Die Ablaufsteuerung bleibt daraufhin im Zustand
+`AD_READY` bzw. `CONTENT_READY` (nicht `ERROR`) und setzt
+`isStartBlocked()`. `main.js` blendet dann genau eine sichtbare
+Aktivierungsfläche über dem Player ein. Ein Klick darauf ruft
+`resumeAfterBlock()` auf; danach läuft der Sendebetrieb dauerhaft ohne
+weitere Nutzeraktion weiter.
+
+## Medienanforderung: faststart
+
+Alle Dateien unter `public/assets/videos/` müssen den `moov`-Container
+**vor** den Mediendaten führen. Andernfalls muss der Browser die gesamte
+Datei laden, bevor er mit der Wiedergabe beginnen kann.
+
+```
+ffmpeg -i eingabe.mp4 -c copy -movflags +faststart ausgabe.mp4
+```
+
+`tests/media.test.js` prüft das für jede in den Mandantendaten
+referenzierte Quelle.
+
+## Kunden-IDs
+
+`tenant-service.js` ist die einzige Stelle, die öffentliche
+ONLANG-Kunden-IDs (`V006`) auf interne Registry-Schlüssel
+(`bbk-duesseldorf`) abbildet. Beide Schreibweisen funktionieren in
+`?kunde=`; in der Adresszeile wird nach einem Wechsel die öffentliche ID
+geführt.

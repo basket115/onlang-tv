@@ -174,3 +174,52 @@ zeigt echte BBK-Daten ohne Sonderfall im Code" usw.).
 - [ ] Browser-Zurück-Taste nach einem Dropdown-Wechsel funktioniert
 - [ ] Embed-Ansicht (`?modus=embed`) zeigt **kein** Dropdown
 - [ ] Browser-Konsole zeigt keine JavaScript-Fehler
+
+
+---
+
+## Automatisierte Testabdeckung (Demo 1.0)
+
+`npm test` führt vier Suiten aus. Diese Tests ersetzen **nicht** die
+sichtbare Freigabe auf Laszlos PC (siehe oben), sind aber Voraussetzung
+dafür, dass eine Version überhaupt vorgelegt wird.
+
+| Suite | Inhalt |
+|---|---|
+| `tenant-validator.test.js` | Validierung und Standardwerte der Mandantendaten |
+| `smoke.test.js` | alle vier in `index.html` geladenen Mandanten |
+| `media.test.js` | Existenz aller referenzierten Medien, MP4-Struktur, `moov` vor `mdat` |
+| `playback-demo.test.js` | Sendebetrieb der kompletten Anwendung |
+
+### Abgedeckte Situationen in `playback-demo.test.js`
+
+Die Anwendung wird vollständig in jsdom geladen — dieselben Dateien in
+derselben Reihenfolge wie in `index.html`. Ersetzt ist ausschließlich die
+Medienwiedergabe: eine Nachbildung des `<video>`-Elements, die `src`,
+`play()`, `pause()` und `load()` kennt und dieselben nativen Ereignisse
+feuert wie ein Browser. Der gesamte geprüfte Ablauf stammt damit
+unverändert aus dem Produktivcode.
+
+1. Automatischer Start mit `?kunde=V006` — Spot zuerst, stumm, genau ein Ladevorgang
+2. Durchlauf Spot → Video → Spot → Video über einen vollständigen Zyklus hinaus
+3. Endlosschleife: nach Video 3 folgt Spot und dann wieder Video 1
+4. „JETZT LÄUFT" synchron zur tatsächlich geladenen Quelle, ohne Verzögerung um einen Eintrag
+5. Blockiertes Autoplay: sichtbare Aktivierung, kein Fehlerzustand, Start nach genau einem Klick
+6. Kundenwechsel: alter Player angehalten, Quelle gelöst, genau ein `<video>`, genau eine `tenant-*`-Klasse
+7. Alte Medienereignisse bleiben nach dem Wechsel wirkungslos
+8. Vier schnelle Wechsel hintereinander — der zuletzt gewählte Verein gewinnt
+9. Rückwechsel zu V006 und Weiterlauf des Ablaufs
+10. Unbekannte Kunden-ID: sichtbarer Hinweis, kein Absturz, Ersatzkanal läuft
+11. Fehlerhafte Medienquelle: verständliche Meldung, Anwendung bleibt bedienbar
+12. Embed-Ansicht: Autostart, Weiterlauf, kein Vereinswechsler
+13. Reload: identisches Startverhalten
+14. Strukturprüfung: Tests und `index.html` laden dieselben Dateien
+
+### Was diese Tests bewusst NICHT abdecken
+
+- echte Dekodierung von H.264/AAC
+- tatsächliche Ladezeiten über das Netz
+- Darstellung, Layout und Lesbarkeit auf realen Geräten
+- gerätespezifisches Autoplay-Verhalten (insbesondere iOS Safari)
+
+Diese Punkte bleiben Gegenstand der sichtbaren Prüfung im Browser.
