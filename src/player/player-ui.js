@@ -39,6 +39,15 @@ window.ONLANG.player = window.ONLANG.player || {};
       '  <div class="player-window">' +
       '    <video class="player-video"></video>' +
       '    <p class="player-video-message" hidden></p>' +
+      // Sichtbare Aktivierungsfläche für den Fall, dass der Browser die
+      // automatische Wiedergabe vollständig blockiert. Bleibt im
+      // Normalfall dauerhaft verborgen — main.js blendet sie
+      // ausschließlich dann ein, wenn der Ablauf tatsächlich blockiert
+      // ist (flow.isStartBlocked()).
+      '    <button type="button" class="player-activate" hidden>' +
+      '      <span class="player-activate-icon" aria-hidden="true">&#9654;</span>' +
+      '      <span class="player-activate-text">ONLANG TV starten</span>' +
+      '    </button>' +
       '  </div>' +
       '  <hr class="player-rule" />' +
       '  <p class="player-row"><span class="player-label">Status:</span> <strong class="player-status">IDLE</strong></p>' +
@@ -63,6 +72,7 @@ window.ONLANG.player = window.ONLANG.player || {};
       statusEl: container.querySelector('.player-status'),
       timeEl: container.querySelector('.player-time'),
       messageEl: container.querySelector('.player-video-message'),
+      activateBtn: container.querySelector('.player-activate'),
       modeRowEl: container.querySelectorAll('.player-row-flow')[0],
       modeEl: container.querySelector('.player-mode'),
       flowStateRowEl: container.querySelectorAll('.player-row-flow')[1],
