@@ -122,7 +122,16 @@
     }
 
     tenantNs.TenantService.applyTenantTheme(tenant.theme);
-    applyTenantClass(tenant.customerId);
+
+    // Die Praesentationsklasse muss IMMER aus dem internen
+    // Registry-Schluessel entstehen, nie aus der rohen customerId.
+    //
+    // Die Bootstrap-API liefert je nach Datenquelle "V006" statt
+    // "bbk-duesseldorf". Ohne Aufloesung entstuende daraus die Klasse
+    // "tenant-v006", fuer die es kein CSS gibt — das BBK-Design fehlte
+    // dann vollstaendig, ohne dass ein Fehler sichtbar wuerde.
+    var registryKey = tenantNs.TenantService.resolveCustomerId(tenant.customerId);
+    applyTenantClass(registryKey);
 
     var modus = runtimeConfig.modus || data.settings.defaultView;
     var isEmbed = modus === 'embed';
@@ -131,7 +140,13 @@
     // Der Vereins-Schnellwechsler bleibt bewusst der Vollansicht
     // vorbehalten (siehe docs/ARCHITECTURE.md).
     var onTenantChange = isEmbed ? undefined : handleTenantSwitch;
-    var viewRefs = view.render(appEl, data, onTenantChange);
+    // Der Schnellwechsler arbeitet mit Registry-Schluesseln — damit die
+    // aktuelle Auswahl auch dann markiert ist, wenn die API "V006"
+    // geliefert hat, wird ebenfalls der aufgeloeste Schluessel uebergeben.
+    var viewData = Object.assign({}, data, {
+      tenant: Object.assign({}, tenant, { registryKey: registryKey }),
+    });
+    var viewRefs = view.render(appEl, viewData, onTenantChange);
 
     // Der Sekundentakt der Kopfzeile gehört zur Session und wird mit
     // ihr beendet.

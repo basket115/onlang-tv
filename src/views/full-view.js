@@ -95,7 +95,11 @@ window.ONLANG.views = window.ONLANG.views || {};
     ns.ViewHelpers.applyPresenter(container, data);
     ns.ViewHelpers.renderPartners(container, data);
     if (onTenantChange) {
-      ns.ViewHelpers.renderTenantSwitcher(container, data.tenant.customerId, onTenantChange);
+      ns.ViewHelpers.renderTenantSwitcher(
+        container,
+        data.tenant.registryKey || data.tenant.customerId,
+        onTenantChange
+      );
     }
 
     return ns.ViewHelpers.createModuleViews(container);

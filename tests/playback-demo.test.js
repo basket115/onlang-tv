@@ -265,7 +265,61 @@ const SPOT = 'public/assets/videos/onlang-spot-real.mp4';
 }
 
 // ---------------------------------------------------------------------
-// 11. Struktur: Tests und Anwendung laden dieselben Dateien
+// 11. Bootstrap-API liefert die oeffentliche Kunden-ID "V006"
+// ---------------------------------------------------------------------
+// Die Apps-Script-API gibt je nach Datenquelle customerId: "V006" zurueck
+// statt des internen Schluessels "bbk-duesseldorf". Das Branding muss
+// trotzdem greifen.
+{
+  const bootstrapResponse = {
+    success: true,
+    meta: { requestedCustomerId: 'V006', loadedCustomerId: 'V006', fallbackUsed: false },
+    tenant: {
+      customerId: 'V006',
+      name: 'BBK TV',
+      tagline: 'Das Videoportal des Basketballkreises Duesseldorf / Neuss',
+      logoUrl: 'public/assets/logos/bbk-logo.png',
+      logoText: 'BBK',
+      theme: { accent: '#ff7a1a', background: '#0f172a', surface: '#18233d', text: '#ffffff' },
+      presenter: { label: 'BBK TV praesentiert von', name: 'ONLANG', logoUrl: '' },
+    },
+    settings: { defaultView: 'full', autoplay: true, mutedAutoplay: true, advertisingMode: 'startup' },
+    playlist: {
+      videos: [
+        { id: 'api-1', title: 'API Beitrag 1', category: 'Highlights', durationLabel: 'VIDEO', src: 'public/assets/videos/video1.mp4' },
+        { id: 'api-2', title: 'API Beitrag 2', category: 'Interviews', durationLabel: 'VIDEO', src: 'public/assets/videos/video2.mp4' },
+      ],
+    },
+    advertising: {
+      items: [
+        { id: 'api-ad', title: 'ONLANG praesentiert', durationLabel: '00:10', src: SPOT, active: true },
+      ],
+    },
+  };
+
+  const app = await createApp({ url: 'https://onlang-tv.test/?kunde=V006', bootstrapResponse });
+
+  equal('API-Daten werden verwendet', app.document.querySelector('.tv-name').textContent, 'BBK TV');
+  equal(
+    'customerId "V006" ergibt trotzdem die BBK-Klasse',
+    app.tenantClasses.join(','),
+    'tenant-bbk-duesseldorf'
+  );
+  check('Keine unbrauchbare Klasse tenant-v006', !app.tenantClasses.includes('tenant-v006'));
+  check('Kein faelschlicher Fallback-Hinweis', !app.document.querySelector('.tv-notice'));
+  equal('Sendebetrieb startet auch mit API-Daten', app.nowPlayingTag, 'WERBUNG');
+
+  await app.endMedia();
+  equal('API-Playlist laeuft weiter', app.nowPlayingTitle, 'API Beitrag 1');
+
+  const switcher = app.document.querySelector('.tv-tenant-switcher');
+  equal('Schnellwechsler markiert den richtigen Verein', switcher.value, 'bbk-duesseldorf');
+
+  app.close();
+}
+
+// ---------------------------------------------------------------------
+// 12. Struktur: Tests und Anwendung laden dieselben Dateien
 // ---------------------------------------------------------------------
 {
   const scripts = getScriptOrderFromIndexHtml();
