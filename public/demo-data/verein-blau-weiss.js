@@ -29,9 +29,9 @@ window.ONLANG.tenantRegistry['verein-blau-weiss'] = {
   },
   settings: {
     defaultView: 'full',
-    autoplay: false,
+    autoplay: true,
     mutedAutoplay: true,
-    loopPlaylist: false,
+    loopPlaylist: true,
     advertisingMode: 'startup',
   },
   live: {

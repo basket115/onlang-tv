@@ -34,6 +34,84 @@ window.ONLANG.tenantRegistry =
     '/.netlify/functions/tv-bootstrap';
 
 
+  /*
+   * Öffentliche ONLANG-Kunden-IDs -> interne Registry-Schlüssel.
+   *
+   * Bisher war die lokale Registry ausschließlich über Slugs
+   * ("bbk-duesseldorf") erreichbar. Ein Aufruf mit ?kunde=V006 fand
+   * deshalb KEINEN Datensatz und landete still beim Standard-Mandanten —
+   * die Seite zeigte ONLANG TV statt BBK TV, ohne sichtbaren Hinweis.
+   *
+   * Diese Tabelle ist die einzige Stelle, die beide Schreibweisen kennt.
+   */
+  var CUSTOMER_ID_ALIASES = {
+    V006: 'bbk-duesseldorf',
+    V902: 'verein-blau-weiss',
+    V002: 'scorpions-sggierath'
+  };
+
+
+  /**
+   * Löst eine öffentliche Kunden-ID in den internen Registry-Schlüssel
+   * auf. Unbekannte Werte werden unverändert zurückgegeben.
+   *
+   * @param {string} customerId
+   * @returns {string}
+   */
+  function resolveCustomerId(customerId) {
+    var raw =
+      normalizeCustomerId(
+        customerId
+      );
+
+    var upper =
+      raw.toUpperCase();
+
+    if (
+      Object.prototype
+        .hasOwnProperty
+        .call(
+          CUSTOMER_ID_ALIASES,
+          upper
+        )
+    ) {
+      return CUSTOMER_ID_ALIASES[
+        upper
+      ];
+    }
+
+    return raw;
+  }
+
+
+  /**
+   * Liefert die öffentliche Kunden-ID zu einem Registry-Schlüssel,
+   * sofern eine hinterlegt ist. Wird vom Vereins-Schnellwechsler
+   * genutzt, damit in der URL weiterhin ?kunde=V006 steht.
+   *
+   * @param {string} registryKey
+   * @returns {string}
+   */
+  function getPublicCustomerId(registryKey) {
+    for (var alias in CUSTOMER_ID_ALIASES) {
+      if (
+        Object.prototype
+          .hasOwnProperty
+          .call(
+            CUSTOMER_ID_ALIASES,
+            alias
+          ) &&
+        CUSTOMER_ID_ALIASES[alias] ===
+          registryKey
+      ) {
+        return alias;
+      }
+    }
+
+    return registryKey;
+  }
+
+
   /**
    * Liest die Kunden-ID aus der URL.
    *
@@ -132,9 +210,21 @@ window.ONLANG.tenantRegistry =
       );
     }
 
-    return loadFromBootstrapApi(
-      requestedId
-    ).catch(function (error) {
+    /*
+     * Bugfix Demo 1.0: loadFromBootstrapApi() wurde direkt aufgerufen.
+     * Wirft es SYNCHRON (z. B. weil fetch in der Umgebung fehlt oder die
+     * URL ungueltig ist), entsteht gar kein Promise — der angehaengte
+     * .catch()-Zweig mit dem lokalen Fallback wird dann nie erreicht und
+     * der Fehler schlaegt bis in main.js durch. Der Aufruf wird deshalb
+     * in eine Promise-Kette gehuellt.
+     */
+    return Promise.resolve()
+      .then(function () {
+        return loadFromBootstrapApi(
+          requestedId
+        );
+      })
+      .catch(function (error) {
       var message =
         error &&
         error.message
@@ -367,8 +457,13 @@ window.ONLANG.tenantRegistry =
     requestedId,
     previousError
   ) {
+    var resolvedId =
+      resolveCustomerId(
+        requestedId
+      );
+
     var loadedId =
-      requestedId;
+      resolvedId;
 
     var raw =
       lookupTenantRaw(
@@ -422,7 +517,7 @@ window.ONLANG.tenantRegistry =
 
       usedFallback:
         loadedId !==
-        requestedId,
+        resolvedId,
 
       data:
         validated.data,
@@ -450,6 +545,11 @@ window.ONLANG.tenantRegistry =
   function lookupTenantRaw(customerId) {
     var registry =
       ns.tenantRegistryRef();
+
+    customerId =
+      resolveCustomerId(
+        customerId
+      );
 
     if (
       Object.prototype
@@ -727,6 +827,12 @@ window.ONLANG.tenantRegistry =
 
     getAvailableCustomerIds:
       getAvailableCustomerIds,
+
+    resolveCustomerId:
+      resolveCustomerId,
+
+    getPublicCustomerId:
+      getPublicCustomerId,
 
     loadTenantData:
       loadTenantData,
