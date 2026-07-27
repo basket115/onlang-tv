@@ -319,7 +319,68 @@ const SPOT = 'public/assets/videos/onlang-spot-real.mp4';
 }
 
 // ---------------------------------------------------------------------
-// 12. Struktur: Tests und Anwendung laden dieselben Dateien
+// 12. mutedAutoplay:false — unstummer Autostart wird blockiert,
+//     Aktivierungsflaeche erscheint, Ablauf laeuft danach mit Ton weiter
+// ---------------------------------------------------------------------
+// Ein Mandant kann per Bootstrap-Daten mutedAutoplay:false anfordern
+// (Ton soll nach Moeglichkeit sofort an sein). Browser lehnen
+// unstummen Autoplay ohne vorherige Nutzeraktion jedoch zuverlaessig ab
+// (siehe tests/harness.js, proto.play). Die Anwendung darf dabei NICHT
+// im Fehlerzustand landen und MUSS dieselbe Aktivierungsflaeche wie
+// beim stummen Fall zeigen.
+{
+  const bootstrapResponse = {
+    success: true,
+    meta: { requestedCustomerId: 'V006', loadedCustomerId: 'V006', fallbackUsed: false },
+    tenant: {
+      customerId: 'V006',
+      name: 'BBK TV',
+      tagline: 'Das Videoportal des Basketballkreises Duesseldorf / Neuss',
+      logoUrl: 'public/assets/logos/bbk-logo.png',
+      logoText: 'BBK',
+      theme: { accent: '#ff7a1a', background: '#0f172a', surface: '#18233d', text: '#ffffff' },
+      presenter: { label: 'BBK TV praesentiert von', name: 'ONLANG', logoUrl: '' },
+    },
+    settings: { defaultView: 'full', autoplay: true, mutedAutoplay: false, advertisingMode: 'startup' },
+    playlist: {
+      videos: [
+        { id: 'api-1', title: 'API Beitrag 1', category: 'Highlights', durationLabel: 'VIDEO', src: 'public/assets/videos/video1.mp4' },
+        { id: 'api-2', title: 'API Beitrag 2', category: 'Interviews', durationLabel: 'VIDEO', src: 'public/assets/videos/video2.mp4' },
+      ],
+    },
+    advertising: {
+      items: [
+        { id: 'api-ad', title: 'ONLANG praesentiert', durationLabel: '00:10', src: SPOT, active: true },
+      ],
+    },
+  };
+
+  const app = await createApp({ url: 'https://onlang-tv.test/?kunde=V006', bootstrapResponse });
+
+  check('Video ist nicht stummgeschaltet', app.video.muted === false);
+  equal('Spot ist bereits geladen', app.currentSource, SPOT);
+  check('Kein Fehlerzustand bei blockiertem unstummen Autoplay', app.flowState !== 'ERROR');
+  check('Aktivierungsflaeche wird sichtbar', app.activateVisible === true);
+
+  await app.userActivates();
+  equal('Wiedergabe startet nach genau einem Klick', app.flowState, 'AD_PLAYING');
+  check('Aktivierungsflaeche verschwindet wieder', app.activateVisible === false);
+  check('Ton bleibt aktiv', app.video.muted === false);
+
+  // Danach muss der komplette Spot -> Video -> Spot -Ablauf ohne
+  // weiteres Zutun und ohne erneute Blockade weiterlaufen.
+  await app.endMedia();
+  equal('Inhalt startet automatisch nach dem Spot', app.nowPlayingTag, 'JETZT LÄUFT');
+  check('Ton bleibt auch beim Inhalt aktiv', app.video.muted === false);
+  await app.endMedia();
+  equal('Naechster Spot startet automatisch', app.nowPlayingTag, 'WERBUNG');
+  check('Aktivierungsflaeche bleibt verborgen', app.activateVisible === false);
+
+  app.close();
+}
+
+// ---------------------------------------------------------------------
+// 13. Struktur: Tests und Anwendung laden dieselben Dateien
 // ---------------------------------------------------------------------
 {
   const scripts = getScriptOrderFromIndexHtml();

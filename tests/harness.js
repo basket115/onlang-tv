@@ -118,7 +118,16 @@ export async function createApp(options = {}) {
   proto.play = function play() {
     state.playCalls += 1;
 
-    if (state.autoplayBlocked && !window.__userHasInteracted) {
+    // Nachbildung der echten Browser-Autoplay-Regel: automatische
+    // Wiedergabe ist zuverlässig nur stumm erlaubt. Ein UNMUTED
+    // play()-Aufruf ohne vorherige echte Nutzeraktion wird deshalb immer
+    // abgelehnt. options.autoplayBlocked simuliert zusätzlich den Fall,
+    // dass sogar ein STUMMER Versuch blockiert wird (z.B. iOS Safari).
+    // Eine echte Nutzeraktion (userActivates()) hebt in beiden Fällen
+    // jede Blockade dauerhaft auf — genau wie im echten Browser.
+    const blocked = !window.__userHasInteracted && (state.autoplayBlocked || !this.muted);
+
+    if (blocked) {
       const error = new Error('play() blocked');
       error.name = 'NotAllowedError';
       return Promise.reject(error);

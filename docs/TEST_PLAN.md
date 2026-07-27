@@ -189,7 +189,7 @@ dafür, dass eine Version überhaupt vorgelegt wird.
 | `tenant-validator.test.js` | Validierung und Standardwerte der Mandantendaten |
 | `smoke.test.js` | alle vier in `index.html` geladenen Mandanten |
 | `media.test.js` | Existenz aller referenzierten Medien, MP4-Struktur, `moov` vor `mdat` |
-| `playback-demo.test.js` | Sendebetrieb der kompletten Anwendung |
+| `playback-demo.test.js` | Sendebetrieb der kompletten Anwendung, inkl. `mutedAutoplay:false` |
 
 ### Abgedeckte Situationen in `playback-demo.test.js`
 
@@ -205,6 +205,7 @@ unverändert aus dem Produktivcode.
 3. Endlosschleife: nach Video 3 folgt Spot und dann wieder Video 1
 4. „JETZT LÄUFT" synchron zur tatsächlich geladenen Quelle, ohne Verzögerung um einen Eintrag
 5. Blockiertes Autoplay: sichtbare Aktivierung, kein Fehlerzustand, Start nach genau einem Klick
+5a. `mutedAutoplay:false`: unstummer Autostart wird abgelehnt, sichtbare Aktivierung erscheint trotzdem, Klick startet mit Ton, Spot → Video → Spot läuft danach ohne erneute Blockade weiter
 6. Kundenwechsel: alter Player angehalten, Quelle gelöst, genau ein `<video>`, genau eine `tenant-*`-Klasse
 7. Alte Medienereignisse bleiben nach dem Wechsel wirkungslos
 8. Vier schnelle Wechsel hintereinander — der zuletzt gewählte Verein gewinnt

@@ -170,8 +170,22 @@
 
     if (autoplayWanted) {
       // Browser erlauben automatisches Abspielen zuverlässig nur stumm.
+      //
+      // Bugfix Demo 1.0 (mutedAutoplay:false): Bisher wurde zusätzlich
+      // das native "autoplay"-Attribut gesetzt. Der Start läuft aber
+      // bereits vollständig über flow.initialize({ autostart: true })
+      // -> requestPlay() -> player.play() — ein expliziter, per Promise
+      // auswertbarer Aufruf. Das native Attribut löste PARALLEL dazu
+      // einen zweiten, für uns unsichtbaren Autoplay-Versuch aus (kein
+      // Promise, kein "NotAllowedError" abrufbar). Bei mutedAutoplay:true
+      // fiel das nicht auf (beide Versuche erlaubt). Bei
+      // mutedAutoplay:false blockiert der Browser den unstummen
+      // Autoplay-Versuch; der zweite, native Versuch konnte den
+      // <video>-Zustand so beeinflussen, dass die Aktivierungsfläche
+      // nicht zuverlässig erschien. Ohne das Attribut läuft ausschließlich
+      // der explizite, beobachtbare play()-Aufruf — genau der Fall, den
+      // player-controller.js/onPlayBlocked() bereits behandelt.
       videoEl.muted = wantsMuted;
-      videoEl.autoplay = true;
       videoEl.playsInline = true;
     }
 

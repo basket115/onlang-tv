@@ -1,5 +1,24 @@
 # Changelog
 
+## Demo 1.0 – mutedAutoplay:false ohne sichtbare Aktivierungsfläche
+
+- **Redundanter nativer Autoplay-Versuch**: `main.js` setzte zusätzlich
+  zum expliziten, per Promise ausgewerteten `player.play()`-Aufruf auch
+  das native `videoEl.autoplay = true`. Bei `mutedAutoplay:false`
+  blockierte der Browser den unstummen Versuch; der parallele, für den
+  Code unsichtbare native Versuch verhinderte, dass die Aktivierungs-
+  fläche zuverlässig erschien. Attribut entfernt — Start läuft jetzt
+  ausschließlich über den einen, beobachtbaren `player.play()`-Aufruf.
+  Siehe `docs/ARCHITECTURE.md`, Abschnitt "Autoplay".
+- Testumgebung (`tests/harness.js`) bildet blockierten Autoplay jetzt
+  wie im echten Browser nach: ein unstummer `play()`-Aufruf ohne
+  vorherige Nutzeraktion wird immer abgelehnt, nicht nur wenn ein
+  Test das manuell simuliert. Neuer Testfall in
+  `tests/playback-demo.test.js` (Abschnitt 12) deckt
+  `mutedAutoplay:false` vollständig ab: Aktivierungsfläche erscheint,
+  Klick startet mit Ton, Spot → Video → Spot läuft danach ohne erneute
+  Blockade weiter.
+
 ## Demo 1.0 – Stabilisierung des Sendebetriebs
 
 Behobene Ursachen:

@@ -541,6 +541,27 @@ Aktivierungsfläche über dem Player ein. Ein Klick darauf ruft
 `resumeAfterBlock()` auf; danach läuft der Sendebetrieb dauerhaft ohne
 weitere Nutzeraktion weiter.
 
+### `settings.mutedAutoplay:false` — unstummer Autostart
+
+Fordert ein Mandant `mutedAutoplay:false` an (Ton soll nach Möglichkeit
+sofort an sein), setzt `main.js` `videoEl.muted = false` und überlässt
+den eigentlichen Startversuch weiterhin ausschließlich dem expliziten
+`player.play()`-Aufruf, den die Ablaufsteuerung beim Autostart ohnehin
+auslöst (`flow.initialize({ autostart: true })` → `requestPlay()`).
+
+Bugfix Demo 1.0: `main.js` setzte bis Demo 1.0 zusätzlich das native
+HTML-Attribut `videoEl.autoplay = true`. Das erzeugte einen zweiten,
+für den Anwendungscode unsichtbaren Autoplay-Versuch des Browsers
+selbst — ohne Promise, ohne `NotAllowedError`, also ohne Möglichkeit,
+ihn über `onPlayBlocked()` zu erkennen. Bei `mutedAutoplay:true` fiel
+das nicht auf (beide Versuche werden vom Browser erlaubt). Bei
+`mutedAutoplay:false` lehnt der Browser den unstummen Versuch ab; der
+parallele, native Versuch konnte den Zustand des `<video>`-Elements so
+beeinflussen, dass die Aktivierungsfläche nicht zuverlässig erschien.
+Das Attribut wurde entfernt — der Start läuft jetzt ausschließlich über
+den einen, beobachtbaren `player.play()`-Aufruf. Siehe
+`tests/playback-demo.test.js`, Abschnitt 12.
+
 ## Medienanforderung: faststart
 
 Alle Dateien unter `public/assets/videos/` müssen den `moov`-Container
