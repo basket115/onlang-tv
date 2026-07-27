@@ -232,7 +232,7 @@ window.ONLANG.tenant = window.ONLANG.tenant || {};
         'Feld "settings" fehlte oder war ungültig — Standardwerte verwendet.'
       );
 
-      return copy(fallback);
+      input = {};
     }
 
     var defaultView =
@@ -279,6 +279,42 @@ window.ONLANG.tenant = window.ONLANG.tenant || {};
       );
     }
 
+    // Mehrsprachigkeit (Phase 3, additiv). Verbindliche Quelle für JEDE
+    // Sprach-Normalisierung ist ausschließlich src/i18n/i18n-service.js
+    // (siehe getI18nService() unten) — keine zweite, eigene
+    // Alias-/Whitelist-Logik. Ist der Dienst hier nicht geladen, fallen
+    // die Sprachfelder sicher auf die Schema-Standardwerte zurück.
+    var i18nService =
+      getI18nService();
+
+    var language =
+      i18nService
+        ? i18nService.normalizeLanguage(input.language)
+        : fallback.language;
+
+    if (
+      input.language !== undefined &&
+      i18nService &&
+      !i18nService.isSupported(input.language)
+    ) {
+      warnings.push(
+        'Feld "settings.language" hatte einen ungültigen Wert ("' +
+          input.language +
+          '") — Standardwert "' +
+          fallback.language +
+          '" verwendet.'
+      );
+    }
+
+    var availableLanguages =
+      validateAvailableLanguages(
+        input.availableLanguages,
+        warnings,
+        i18nService,
+        language,
+        fallback.availableLanguages
+      );
+
     return {
       defaultView: defaultView,
 
@@ -301,7 +337,25 @@ window.ONLANG.tenant = window.ONLANG.tenant || {};
         ),
 
       advertisingMode:
-        advertisingMode
+        advertisingMode,
+
+      language:
+        language,
+
+      availableLanguages:
+        availableLanguages,
+
+      languageSwitcherEnabled:
+        booleanOrDefault(
+          input.languageSwitcherEnabled,
+          fallback.languageSwitcherEnabled
+        ),
+
+      filterContentByLanguage:
+        booleanOrDefault(
+          input.filterContentByLanguage,
+          fallback.filterContentByLanguage
+        )
     };
   }
 
@@ -767,6 +821,106 @@ window.ONLANG.tenant = window.ONLANG.tenant || {};
     return result;
   }
 
+
+  // ---------------------------------------------------------------------------
+  // Sprachvalidierung (Mehrsprachigkeit, Phase 3)
+  //
+  // Verwendet AUSSCHLIESSLICH src/i18n/i18n-service.js — keine eigene,
+  // zweite Normalisierungs-/Alias-Logik. Ist der Dienst in dieser
+  // Umgebung nicht geladen (z.B. weil index.html die i18n-Skripte noch
+  // nicht einbindet), liefert getI18nService() null und alle
+  // Sprachfelder fallen sicher auf die Schema-Standardwerte zurück.
+  // ---------------------------------------------------------------------------
+
+  function getI18nService() {
+    var i18nNs =
+      window.ONLANG &&
+      window.ONLANG.i18n;
+
+    return (
+      i18nNs &&
+      i18nNs.I18nService &&
+      typeof i18nNs.I18nService.normalizeLanguage === 'function' &&
+      typeof i18nNs.I18nService.isSupported === 'function'
+    )
+      ? i18nNs.I18nService
+      : null;
+  }
+
+
+  /**
+   * Validiert settings.availableLanguages.
+   *
+   * @param {*} input
+   * @param {string[]} warnings
+   * @param {object|null} i18nService
+   * @param {string} activeLanguage - bereits aufgelöster settings.language-Wert
+   * @param {string[]} fallbackList - DEFAULT_TENANT_SCHEMA.settings.availableLanguages
+   * @returns {string[]}
+   */
+  function validateAvailableLanguages(
+    input,
+    warnings,
+    i18nService,
+    activeLanguage,
+    fallbackList
+  ) {
+    var result;
+
+    if (!i18nService) {
+      result = fallbackList.slice();
+    } else if (!Array.isArray(input)) {
+      if (input !== undefined) {
+        warnings.push(
+          'Feld "settings.availableLanguages" war kein Array — Standardliste verwendet.'
+        );
+      }
+
+      result = fallbackList.slice();
+    } else {
+      result = [];
+
+      input.forEach(function (rawValue, index) {
+        if (!i18nService.isSupported(rawValue)) {
+          warnings.push(
+            'Eintrag settings.availableLanguages[' +
+              index +
+              '] ungültig ("' +
+              rawValue +
+              '") — übersprungen.'
+          );
+
+          return;
+        }
+
+        var normalized =
+          i18nService.normalizeLanguage(rawValue);
+
+        if (result.indexOf(normalized) === -1) {
+          result.push(normalized);
+        }
+      });
+
+      if (result.length === 0) {
+        if (input.length > 0) {
+          warnings.push(
+            'Feld "settings.availableLanguages" enthielt keine gültigen Sprachen — Standardliste verwendet.'
+          );
+        }
+
+        result = fallbackList.slice();
+      }
+    }
+
+    // Die aktive Sprache muss immer enthalten sein — fehlt sie, wird sie
+    // vorne ergänzt (genau ein Punkt, an dem das geprüft wird, egal
+    // welcher Zweig oben den Wert von "result" bestimmt hat).
+    if (result.indexOf(activeLanguage) === -1) {
+      result = [activeLanguage].concat(result);
+    }
+
+    return result;
+  }
 
   // ---------------------------------------------------------------------------
   // Hilfsfunktionen

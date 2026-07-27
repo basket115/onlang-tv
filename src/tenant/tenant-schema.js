@@ -50,6 +50,14 @@ window.ONLANG.tenant = window.ONLANG.tenant || {};
       mutedAutoplay: true,
       loopPlaylist: false,
       advertisingMode: 'off',
+      // NEU (Mehrsprachigkeit, Phase 3, additiv): Oberflächensprache und
+      // Sprachumschalter. Gültigkeit/Normalisierung ausschließlich über
+      // src/i18n/i18n-service.js (siehe tenant-validator.js,
+      // getI18nService()) — kein zweites Sprach-Whitelist hier.
+      language: 'DE',
+      availableLanguages: ['DE', 'HU', 'EN'],
+      languageSwitcherEnabled: true,
+      filterContentByLanguage: false,
     },
     live: {
       enabled: false,
