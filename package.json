@@ -5,7 +5,7 @@
   "type": "module",
   "description": "ONLANG TV — mandantenfähiges Videoportal-Modul für Vereine, Basketballkreise, Landesverbände und andere Sportorganisationen. Läuft ab Schritt 2 vollständig ohne Build-Schritt direkt über file://.",
   "scripts": {
-    "test": "node tests/tenant-validator.test.js && node tests/smoke.test.js && node tests/media.test.js && node tests/playback-demo.test.js"
+    "test": "node tests/tenant-validator.test.js && node tests/smoke.test.js && node tests/tenant-service.test.js && node tests/media.test.js && node tests/playback-demo.test.js"
   },
   "dependencies": {
     "jsdom": "^26.1.0"

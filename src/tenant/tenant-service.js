@@ -51,6 +51,24 @@ window.ONLANG.tenantRegistry =
   };
 
 
+  /*
+   * settings.advertisingMode: Bootstrap-API-Wert -> offizieller Wert.
+   *
+   * tenant-schema.js legt die offiziell gültigen Werte fest
+   * ("off"/"startup"/"always", siehe VALID_ADVERTISING_MODES). Die
+   * Apps-Script-API liefert inhaltlich denselben Modus ("Werbung
+   * zwischen jedem Video") aktuell aber unter der Schreibweise
+   * "between" statt "always" — ohne diese Abbildung fiel jeder
+   * Bootstrap-Aufruf mit einer Validierungswarnung auf "off" zurück,
+   * obwohl der angeforderte Modus gültig gemeint war.
+   *
+   * Diese Tabelle ist die einzige Stelle, die beide Schreibweisen kennt.
+   */
+  var ADVERTISING_MODE_ALIASES = {
+    between: 'always'
+  };
+
+
   /**
    * Löst eine öffentliche Kunden-ID in den internen Registry-Schlüssel
    * auf. Unbekannte Werte werden unverändert zurückgegeben.
@@ -416,7 +434,9 @@ window.ONLANG.tenantRegistry =
         isPlainObject(
           bootstrapResult.settings
         )
-          ? bootstrapResult.settings
+          ? normalizeSettings(
+            bootstrapResult.settings
+          )
           : {},
 
       live:
@@ -443,6 +463,55 @@ window.ONLANG.tenantRegistry =
       categories: [],
       partners: []
     };
+  }
+
+
+  /**
+   * Bildet settings.advertisingMode aus der Bootstrap-API auf den
+   * offiziellen, von tenant-validator.js akzeptierten Wert ab (siehe
+   * ADVERTISING_MODE_ALIASES). Alle anderen Felder bleiben unverändert.
+   *
+   * @param {object} settingsInput
+   * @returns {object}
+   */
+  function normalizeSettings(
+    settingsInput
+  ) {
+    var rawMode =
+      settingsInput.advertisingMode;
+
+    if (typeof rawMode !== 'string') {
+      return settingsInput;
+    }
+
+    var alias =
+      Object.prototype
+        .hasOwnProperty
+        .call(
+          ADVERTISING_MODE_ALIASES,
+          rawMode
+        )
+        ? ADVERTISING_MODE_ALIASES[rawMode]
+        : null;
+
+    if (!alias) {
+      return settingsInput;
+    }
+
+    var normalized = {};
+    for (var key in settingsInput) {
+      if (
+        Object.prototype.hasOwnProperty.call(
+          settingsInput,
+          key
+        )
+      ) {
+        normalized[key] = settingsInput[key];
+      }
+    }
+    normalized.advertisingMode = alias;
+
+    return normalized;
   }
 
 

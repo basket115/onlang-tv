@@ -1,5 +1,20 @@
 # Changelog
 
+## Demo 1.0 – Validierungswarnung settings.advertisingMode
+
+- **Bootstrap-API liefert "between" statt eines offiziellen Werts**:
+  `tenant-schema.js` (`VALID_ADVERTISING_MODES`) akzeptiert ausschließlich
+  `"off"`/`"startup"`/`"always"`. Die Apps-Script-Bootstrap-API liefert
+  denselben, inhaltlich gültigen Modus ("Werbung zwischen jedem Video")
+  aber als `"between"` — jeder Bootstrap-Aufruf erzeugte dadurch eine
+  Validierungswarnung und `advertisingMode` fiel auf `"off"` zurück.
+  `tenant-service.js` (`adaptBootstrapResult()`) bildet `"between"` jetzt
+  über eine neue `ADVERTISING_MODE_ALIASES`-Tabelle auf `"always"` ab,
+  bevor validiert wird — analog zum bestehenden `CUSTOMER_ID_ALIASES`-
+  Muster in derselben Datei. Validator, Schema und alle lokalen
+  Mandanten-Dateien bleiben unverändert; keine funktionale Änderung an
+  Player oder Ablaufsteuerung. Neuer Test: `tests/tenant-service.test.js`.
+
 ## Demo 1.0 – mutedAutoplay:false ohne sichtbare Aktivierungsfläche
 
 - **Redundanter nativer Autoplay-Versuch**: `main.js` setzte zusätzlich
