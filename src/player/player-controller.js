@@ -1,13 +1,16 @@
 // player-controller.js
 //
 // Öffentliche API des ONLANG Media Players.
-// Vollständig unabhängig von Playlist, Werbung, Studio, Google Sheets
-// und BBK.
+// Unabhängig von Playlist, Werbung, Studio, Google Sheets und BBK.
 //
-// Unterstützt Videoquellen als:
+// Unterstützt:
 //   - direkter String
 //   - { source: '...' }
 //   - { src: '...' }
+//
+// Für den automatischen TV-Betrieb wird das Video vor play()
+// stumm geschaltet. Dadurch erlaubt Chrome auch automatische
+// Medienwechsel Spot -> Video -> Spot.
 //
 // Klassisches <script>, KEIN ES-Modul.
 
@@ -17,9 +20,6 @@ window.ONLANG.player = window.ONLANG.player || {};
 (function (ns) {
   'use strict';
 
-  /**
-   * @param {HTMLVideoElement} videoEl
-   */
   function createPlayerController(videoEl) {
     if (!videoEl) {
       throw new Error(
@@ -29,6 +29,7 @@ window.ONLANG.player = window.ONLANG.player || {};
 
     var state = ns.PlayerState.createPlayerState();
     var STATES = state.STATES;
+
     var timeListeners = [];
     var eventBinding = null;
 
@@ -51,7 +52,9 @@ window.ONLANG.player = window.ONLANG.player || {};
         );
       }
 
-      if (typeof callback !== 'function') return;
+      if (typeof callback !== 'function') {
+        return;
+      }
 
       rawEventListeners[eventName].push(callback);
     }
@@ -64,6 +67,7 @@ window.ONLANG.player = window.ONLANG.player || {};
       }
     }
 
+
     // ============================================================
     // VIDEO-EVENTS
     // ============================================================
@@ -74,11 +78,23 @@ window.ONLANG.player = window.ONLANG.player || {};
       }
 
       notifyTime();
+
+      console.log(
+        '[ONLANG Player] Metadata geladen:',
+        videoEl.currentSrc
+      );
+
       emit('loadedmetadata');
     }
 
     function handlePlay() {
       state.set(STATES.PLAYING);
+
+      console.log(
+        '[ONLANG Player] Wiedergabe läuft:',
+        videoEl.currentSrc
+      );
+
       emit('play');
     }
 
@@ -92,11 +108,24 @@ window.ONLANG.player = window.ONLANG.player || {};
 
     function handleEnded() {
       state.set(STATES.ENDED);
+
+      console.log(
+        '[ONLANG Player] Video beendet:',
+        videoEl.currentSrc
+      );
+
       emit('ended');
     }
 
     function handleError() {
       state.set(STATES.ERROR);
+
+      console.error(
+        '[ONLANG Player] Video-Fehler:',
+        videoEl.currentSrc,
+        videoEl.error
+      );
+
       emit('error');
     }
 
@@ -112,7 +141,9 @@ window.ONLANG.player = window.ONLANG.player || {};
     }
 
     function ensureEventsBound() {
-      if (eventBinding) return;
+      if (eventBinding) {
+        return;
+      }
 
       eventBinding = ns.PlayerEvents.bindPlayerEvents(videoEl, {
         loadedmetadata: handleLoadedMetadata,
@@ -126,7 +157,7 @@ window.ONLANG.player = window.ONLANG.player || {};
 
 
     // ============================================================
-    // QUELLE ERMITTELN
+    // VIDEOQUELLE
     // ============================================================
 
     function getVideoSource(video) {
@@ -138,13 +169,17 @@ window.ONLANG.player = window.ONLANG.player || {};
         return '';
       }
 
-      // Neue Bootstrap-Struktur
-      if (typeof video.src === 'string' && video.src.trim() !== '') {
+      if (
+        typeof video.src === 'string' &&
+        video.src.trim() !== ''
+      ) {
         return video.src.trim();
       }
 
-      // Alte Player-/Playlist-Struktur
-      if (typeof video.source === 'string' && video.source.trim() !== '') {
+      if (
+        typeof video.source === 'string' &&
+        video.source.trim() !== ''
+      ) {
         return video.source.trim();
       }
 
@@ -157,16 +192,19 @@ window.ONLANG.player = window.ONLANG.player || {};
     // ============================================================
 
     function normaliseVideoSource(src) {
-      if (!src) return '';
+      if (!src) {
+        return '';
+      }
 
       try {
-        // Absolute URLs bleiben unverändert.
         if (/^https?:\/\//i.test(src)) {
           return src;
         }
 
-        // Relative URL sauber gegen die aktuelle Website auflösen.
-        return new URL(src, window.location.href).href;
+        return new URL(
+          src,
+          window.location.href
+        ).href;
 
       } catch (e) {
         return src;
@@ -175,17 +213,9 @@ window.ONLANG.player = window.ONLANG.player || {};
 
 
     // ============================================================
-    // ÖFFENTLICHE API
+    // LOAD
     // ============================================================
 
-    /**
-     * Lädt ein Video.
-     *
-     * Unterstützt:
-     *   load('https://...')
-     *   load({ source: '...' })
-     *   load({ src: '...' })
-     */
     function load(video) {
       ensureEventsBound();
 
@@ -209,60 +239,120 @@ window.ONLANG.player = window.ONLANG.player || {};
 
       state.set(STATES.LOADING);
 
-      // Alte Quelle sauber entfernen.
+      // Alte Wiedergabe stoppen.
       videoEl.pause();
+
+      // Alte Quelle entfernen.
       videoEl.removeAttribute('src');
 
       // Neue Quelle setzen.
       videoEl.src = src;
 
+      // Browser auf Inline-Wiedergabe vorbereiten.
+      videoEl.playsInline = true;
+
       videoEl.load();
     }
 
 
+    // ============================================================
+    // PLAY
+    // ============================================================
+
     function play() {
-      var playPromise = videoEl.play();
+
+      // ----------------------------------------------------------
+      // WICHTIG FÜR CHROME:
+      //
+      // Automatische Folge-Wiedergabe funktioniert zuverlässig,
+      // wenn das Video stumm ist.
+      //
+      // HU001 besitzt im Bootstrap:
+      // mutedAutoplay: true
+      //
+      // Der bisherige Player hat diese Bedingung technisch
+      // überhaupt nicht umgesetzt.
+      // ----------------------------------------------------------
+
+      videoEl.muted = true;
+      videoEl.defaultMuted = true;
+
+      console.log(
+        '[ONLANG Player] Starte Wiedergabe:',
+        videoEl.currentSrc || videoEl.src,
+        'muted =',
+        videoEl.muted
+      );
+
+      var playPromise;
+
+      try {
+        playPromise = videoEl.play();
+
+      } catch (error) {
+        console.error(
+          '[ONLANG Player] play() Ausnahme:',
+          error
+        );
+
+        state.set(STATES.ERROR);
+        return;
+      }
 
       if (
         playPromise &&
-        typeof playPromise.catch === 'function'
+        typeof playPromise.then === 'function'
       ) {
-        playPromise.catch(function (error) {
-          console.warn(
-            '[ONLANG Player] Wiedergabe konnte nicht gestartet werden:',
-            error
-          );
+        playPromise
+          .then(function () {
+            console.log(
+              '[ONLANG Player] play() erfolgreich:',
+              videoEl.currentSrc
+            );
+          })
+          .catch(function (error) {
+            console.error(
+              '[ONLANG Player] Wiedergabe blockiert:',
+              error.name,
+              error.message
+            );
 
-          state.set(STATES.ERROR);
-        });
+            state.set(STATES.ERROR);
+          });
       }
     }
 
+
+    // ============================================================
+    // PAUSE
+    // ============================================================
 
     function pause() {
       videoEl.pause();
     }
 
 
-    /**
-     * Stop = Pause + zurück auf Anfang.
-     */
+    // ============================================================
+    // STOP
+    // ============================================================
+
     function stop() {
       videoEl.pause();
 
       try {
         videoEl.currentTime = 0;
       } catch (e) {
-        // Kein Fehler nach außen.
+        // absichtlich leer
       }
 
       notifyTime();
     }
 
 
-    /**
-     * Liefert eine lesbare Fehlermeldung.
-     */
+    // ============================================================
+    // FEHLERMELDUNG
+    // ============================================================
+
     function getErrorMessage() {
       var mediaError = videoEl.error;
 
@@ -290,7 +380,12 @@ window.ONLANG.player = window.ONLANG.player || {};
     }
 
 
+    // ============================================================
+    // ÖFFENTLICHE API
+    // ============================================================
+
     return {
+
       load: load,
       play: play,
       pause: pause,
@@ -342,7 +437,8 @@ window.ONLANG.player = window.ONLANG.player || {};
 
 
   ns.PlayerController = {
-    createPlayerController: createPlayerController
+    createPlayerController:
+      createPlayerController
   };
 
 })(window.ONLANG.player);
