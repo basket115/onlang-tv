@@ -7,7 +7,7 @@ window.ONLANG.tenantRegistry['HU001'] = {
     customerId: 'HU001',
     name: 'Darazsak TV',
     tagline: 'A Darazsak videócsatornája',
-    logoUrl: '',
+    logoUrl: 'public/assets/logos/Darazsak Logo.png',
     logoText: 'DARAZSAK',
     theme: {
       accent: '#f2b705',
