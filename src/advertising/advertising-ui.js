@@ -1,11 +1,10 @@
 // advertising-ui.js
 //
-// Zeigt AUSSCHLIESSLICH die Kennzeichnung "WERBUNG"/"JETZT LÄUFT" samt
-// Titel an (siehe Anweisung, Punkt 13). Kennt WEDER den Player noch die
-// Playlist direkt — liest ausschließlich die bereits aufbereitete
-// Anzeige-Information vom PlaybackFlowController
-// (getNowPlayingInfo()/onChange()). So bleibt die Trennregel "Werbung
-// kennt keine Playlist" auch auf UI-Ebene eingehalten.
+// Zeigt AUSSCHLIESSLICH die Kennzeichnung
+// "WERBUNG"/"JETZT LÄUFT" samt Titel an.
+//
+// Für HU001 / Darazsak werden die sichtbaren Texte ungarisch
+// ausgegeben. Alle anderen Mandanten bleiben deutsch.
 //
 // Klassisches <script>, KEIN ES-Modul.
 
@@ -14,6 +13,42 @@ window.ONLANG.advertising = window.ONLANG.advertising || {};
 
 (function (ns) {
   'use strict';
+
+  function isDarazsak() {
+    var switcher = document.getElementById('tv-tenant-switcher');
+
+    if (
+      switcher &&
+      String(switcher.value || '').toUpperCase() === 'HU001'
+    ) {
+      return true;
+    }
+
+    try {
+      var params = new URLSearchParams(window.location.search);
+      return String(params.get('kunde') || '').toUpperCase() === 'HU001';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function getTexts() {
+    if (isDarazsak()) {
+      return {
+        advertisement: 'HIRDETÉS',
+        nowPlaying: 'MOST MŰSORON',
+        next: 'KÖVETKEZIK',
+        after: 'UTÁNA'
+      };
+    }
+
+    return {
+      advertisement: 'WERBUNG',
+      nowPlaying: 'JETZT LÄUFT',
+      next: 'ALS NÄCHSTES',
+      after: 'DANACH'
+    };
+  }
 
   function createAdvertisingView(container) {
     container.innerHTML =
@@ -51,7 +86,7 @@ window.ONLANG.advertising = window.ONLANG.advertising || {};
       upcomingTitleEl: container.querySelector('.upcoming-title'),
       afterEl: container.querySelector('.upcoming-after'),
       afterTagEl: container.querySelector('.upcoming-after-tag'),
-      afterTitleEl: container.querySelector('.upcoming-after-title'),
+      afterTitleEl: container.querySelector('.upcoming-after-title')
     };
   }
 
@@ -60,7 +95,9 @@ window.ONLANG.advertising = window.ONLANG.advertising || {};
    * @param {ReturnType<window.ONLANG.playback.PlaybackFlowController.createPlaybackFlowController>} flowController
    */
   function wireAdvertisingView(view, flowController) {
+
     function render() {
+      var t = getTexts();
       var info = flowController.getNowPlayingInfo();
 
       if (!info || !info.tag) {
@@ -69,26 +106,69 @@ window.ONLANG.advertising = window.ONLANG.advertising || {};
       }
 
       view.rootEl.hidden = false;
-      view.rootEl.classList.toggle('now-playing-ad', info.tag === 'WERBUNG');
-      view.rootEl.classList.toggle('now-playing-content', info.tag !== 'WERBUNG');
-      view.tagEl.textContent = info.tag;
-      view.titleEl.textContent = info.title || '';
 
-      var upcoming = flowController.getUpcomingInfo ? flowController.getUpcomingInfo() : null;
+      var isAdvertisement =
+        info.tag === 'WERBUNG' ||
+        info.tag === 'HIRDETÉS';
+
+      view.rootEl.classList.toggle(
+        'now-playing-ad',
+        isAdvertisement
+      );
+
+      view.rootEl.classList.toggle(
+        'now-playing-content',
+        !isAdvertisement
+      );
+
+      // Der Controller liefert intern weiterhin die deutschen Tags.
+      // Nur die sichtbare Darstellung wird für HU001 übersetzt.
+      if (isDarazsak()) {
+        view.tagEl.textContent =
+          info.tag === 'WERBUNG'
+            ? t.advertisement
+            : t.nowPlaying;
+      } else {
+        view.tagEl.textContent = info.tag;
+      }
+
+      view.titleEl.textContent =
+        info.title || '';
+
+      var upcoming =
+        flowController.getUpcomingInfo
+          ? flowController.getUpcomingInfo()
+          : null;
+
       if (!upcoming || !upcoming.nextTitle) {
         view.upcomingEl.hidden = true;
         return;
       }
 
       view.upcomingEl.hidden = false;
-      view.upcomingTagEl.textContent = upcoming.nextTag || 'ALS NÄCHSTES';
-      view.upcomingTitleEl.textContent = upcoming.nextTitle;
+
+      view.upcomingTagEl.textContent =
+        isDarazsak()
+          ? t.next
+          : (upcoming.nextTag || t.next);
+
+      view.upcomingTitleEl.textContent =
+        upcoming.nextTitle;
 
       if (upcoming.afterTitle) {
+
         view.afterEl.hidden = false;
-        view.afterTagEl.textContent = upcoming.afterTag || 'DANACH';
-        view.afterTitleEl.textContent = upcoming.afterTitle;
+
+        view.afterTagEl.textContent =
+          isDarazsak()
+            ? t.after
+            : (upcoming.afterTag || t.after);
+
+        view.afterTitleEl.textContent =
+          upcoming.afterTitle;
+
       } else {
+
         view.afterEl.hidden = true;
         view.afterTagEl.textContent = '';
         view.afterTitleEl.textContent = '';
@@ -101,6 +181,7 @@ window.ONLANG.advertising = window.ONLANG.advertising || {};
 
   ns.AdvertisingUI = {
     createAdvertisingView: createAdvertisingView,
-    wireAdvertisingView: wireAdvertisingView,
+    wireAdvertisingView: wireAdvertisingView
   };
+
 })(window.ONLANG.advertising);
