@@ -74,6 +74,23 @@ window.ONLANG.views = window.ONLANG.views || {};
    */
   function render(container, data, onTenantChange) {
     var t = getTexts(data);
+    var darazsak = isDarazsak(data);
+
+    // Bei Darazsak wird bewusst KEIN Tenant-/Kanal-Umschalter angezeigt.
+    // Der Besucher der Vereinswebsite bleibt ausschließlich in Darazsak TV.
+    var tenantSwitcherHtml = '';
+
+    if (!darazsak) {
+      tenantSwitcherHtml =
+        '      <div class="tv-header-switcher">' +
+        '        <label class="tv-switcher-label" for="tv-tenant-switcher">' +
+                   escapeHtml(t.club) +
+        '        </label>' +
+        '        <select class="tv-tenant-switcher" id="tv-tenant-switcher" aria-label="' +
+                   escapeHtml(t.switchClub) +
+        '        "></select>' +
+        '      </div>';
+    }
 
     container.innerHTML =
       '<div class="tv-app">' +
@@ -88,30 +105,39 @@ window.ONLANG.views = window.ONLANG.views || {};
       '    <div class="tv-header-actions">' +
       '      <div class="tv-broadcast-panel" aria-label="' + escapeHtml(t.broadcastAria) + '">' +
       '        <div class="tv-broadcast-topline">' +
-      '          <span class="tv-live-badge"><span class="tv-live-dot"></span>' + escapeHtml(t.live) + '</span>' +
+      '          <span class="tv-live-badge"><span class="tv-live-dot"></span>' +
+                   escapeHtml(t.live) +
+      '          </span>' +
       '          <span class="tv-broadcast-channel"></span>' +
       '        </div>' +
       '        <div class="tv-broadcast-datetime">' +
       '          <span class="tv-broadcast-date"></span>' +
       '          <span class="tv-broadcast-time"></span>' +
       '        </div>' +
-      '        <div class="tv-broadcast-operation"><span class="tv-operation-dot"></span>' + escapeHtml(t.automaticOperation) + '</div>' +
+      '        <div class="tv-broadcast-operation">' +
+      '          <span class="tv-operation-dot"></span>' +
+                 escapeHtml(t.automaticOperation) +
+      '        </div>' +
       '      </div>' +
-      '      <div class="tv-header-switcher">' +
-      '        <label class="tv-switcher-label" for="tv-tenant-switcher">' + escapeHtml(t.club) + '</label>' +
-      '        <select class="tv-tenant-switcher" id="tv-tenant-switcher" aria-label="' + escapeHtml(t.switchClub) + '"></select>' +
-      '      </div>' +
+
+      tenantSwitcherHtml +
+
       '    </div>' +
       '  </header>' +
+
       '  <main class="tv-main">' +
       '    <div class="tv-player-col">' +
       '      <div class="tv-presenter-bar" hidden>' +
       '        <span class="tv-presenter-label"></span>' +
       '        <span class="tv-presenter-name"></span>' +
       '      </div>' +
+
       '      <div id="now-playing-container"></div>' +
       '      <div id="player-container"></div>' +
-      '      <div class="tv-info-ticker" role="region" aria-label="' + escapeHtml(t.tvInfo) + '">' +
+
+      '      <div class="tv-info-ticker" role="region" aria-label="' +
+               escapeHtml(t.tvInfo) +
+      '      ">' +
       '        <div class="tv-info-ticker-label"></div>' +
       '        <div class="tv-info-ticker-window">' +
       '          <div class="tv-info-ticker-track">' +
@@ -121,12 +147,15 @@ window.ONLANG.views = window.ONLANG.views || {};
       '        </div>' +
       '      </div>' +
       '    </div>' +
+
       '    <aside id="playlist-container" class="tv-playlist-col"></aside>' +
       '  </main>' +
+
       '  <section class="tv-partners">' +
       '    <h2 class="tv-section-title">' + escapeHtml(t.partners) + '</h2>' +
       '    <div class="tv-partner-row"></div>' +
       '  </section>' +
+
       '  <footer class="tv-footer">' +
       '    <strong>' + escapeHtml(t.footerVersion) + '</strong>' +
       '    <span>' + escapeHtml(t.footerText) + '</span>' +
@@ -136,8 +165,9 @@ window.ONLANG.views = window.ONLANG.views || {};
     ns.ViewHelpers.applyHeader(container, data);
 
     // Darazsak: Logo etwas präsenter darstellen.
-    if (isDarazsak(data)) {
+    if (darazsak) {
       var logoEl = container.querySelector('.tv-logo');
+
       if (logoEl) {
         logoEl.style.width = '58px';
         logoEl.style.height = '58px';
@@ -151,10 +181,14 @@ window.ONLANG.views = window.ONLANG.views || {};
     applyBroadcastBranding(container, data);
     renderTicker(container, data);
     initialiseBroadcastClock(container, data);
+
     ns.ViewHelpers.applyPresenter(container, data);
     ns.ViewHelpers.renderPartners(container, data);
 
-    if (onTenantChange) {
+    // WICHTIG:
+    // Darazsak/HU001 bekommt bewusst KEINEN Kanal-Umschalter.
+    // Alle anderen Tenants funktionieren weiterhin wie bisher.
+    if (!darazsak && onTenantChange) {
       ns.ViewHelpers.renderTenantSwitcher(
         container,
         data.tenant.customerId,
@@ -176,97 +210,140 @@ window.ONLANG.views = window.ONLANG.views || {};
 
   function applyBroadcastBranding(container, data) {
     var channelEl = container.querySelector('.tv-broadcast-channel');
+
     if (channelEl) {
-      channelEl.textContent = data.tenant.name || 'ONLANG TV';
+      channelEl.textContent =
+        data.tenant.name || 'ONLANG TV';
     }
   }
 
   function renderTicker(container, data) {
     var t = getTexts(data);
-    var label = container.querySelector('.tv-info-ticker-label');
-    var groups = container.querySelectorAll('.tv-info-ticker-group');
+
+    var label =
+      container.querySelector('.tv-info-ticker-label');
+
+    var groups =
+      container.querySelectorAll('.tv-info-ticker-group');
 
     if (label) {
-      label.textContent = data.tenant.name || 'ONLANG TV';
+      label.textContent =
+        data.tenant.name || 'ONLANG TV';
     }
 
     var messages = [
-      t.welcomePrefix + (data.tenant.name || 'ONLANG TV') + t.welcomeSuffix,
+      t.welcomePrefix +
+        (data.tenant.name || 'ONLANG TV') +
+        t.welcomeSuffix,
+
       t.automaticTicker,
+
       t.sponsorTicker
     ];
 
     (data.categories || []).forEach(function (item) {
-      var categoryText = item.label || t.topicFallback;
+      var categoryText =
+        item.label || t.topicFallback;
+
       if (item.description) {
         categoryText += ': ' + item.description;
       }
+
       messages.push(categoryText);
     });
 
     (data.videos || []).forEach(function (item) {
       if (item && item.title) {
-        messages.push(t.inProgram + item.title);
+        messages.push(
+          t.inProgram + item.title
+        );
       }
     });
 
     messages.push(t.future);
 
-    Array.prototype.forEach.call(groups, function (group) {
-      group.innerHTML = '';
+    Array.prototype.forEach.call(
+      groups,
+      function (group) {
 
-      messages.forEach(function (message) {
-        var text = document.createElement('span');
-        text.textContent = message;
-        group.appendChild(text);
+        group.innerHTML = '';
 
-        var separator = document.createElement('span');
-        separator.setAttribute('aria-hidden', 'true');
-        separator.textContent = '•';
-        group.appendChild(separator);
-      });
-    });
+        messages.forEach(function (message) {
+          var text =
+            document.createElement('span');
+
+          text.textContent = message;
+
+          group.appendChild(text);
+
+          var separator =
+            document.createElement('span');
+
+          separator.setAttribute(
+            'aria-hidden',
+            'true'
+          );
+
+          separator.textContent = '•';
+
+          group.appendChild(separator);
+        });
+      }
+    );
   }
 
   function initialiseBroadcastClock(container, data) {
-    var dateEl = container.querySelector('.tv-broadcast-date');
-    var timeEl = container.querySelector('.tv-broadcast-time');
+    var dateEl =
+      container.querySelector('.tv-broadcast-date');
 
-    if (!dateEl || !timeEl) return;
+    var timeEl =
+      container.querySelector('.tv-broadcast-time');
+
+    if (!dateEl || !timeEl) {
+      return;
+    }
 
     var hu = isDarazsak(data);
 
     function updateClock() {
       var now = new Date();
 
-      dateEl.textContent = now.toLocaleDateString(
-        hu ? 'hu-HU' : 'de-DE',
-        {
-          weekday: 'long',
-          day: '2-digit',
-          month: 'long',
-          year: 'numeric'
-        }
-      );
+      dateEl.textContent =
+        now.toLocaleDateString(
+          hu ? 'hu-HU' : 'de-DE',
+          {
+            weekday: 'long',
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric'
+          }
+        );
 
-      timeEl.textContent = now.toLocaleTimeString(
-        hu ? 'hu-HU' : 'de-DE',
-        {
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit'
-        }
-      ) + (hu ? '' : ' Uhr');
+      timeEl.textContent =
+        now.toLocaleTimeString(
+          hu ? 'hu-HU' : 'de-DE',
+          {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+          }
+        ) +
+        (hu ? '' : ' Uhr');
     }
 
     updateClock();
 
     if (window.ONLANG_TV_CLOCK_TIMER) {
-      window.clearInterval(window.ONLANG_TV_CLOCK_TIMER);
+      window.clearInterval(
+        window.ONLANG_TV_CLOCK_TIMER
+      );
     }
 
     window.ONLANG_TV_CLOCK_TIMER =
-      window.setInterval(updateClock, 1000);
+      window.setInterval(
+        updateClock,
+        1000
+      );
   }
 
   ns.FullView = {
