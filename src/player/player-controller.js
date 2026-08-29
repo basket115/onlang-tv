@@ -1,33 +1,15 @@
 // player-controller.js
 //
-// Öffentliche API des ONLANG Media Players. Ist vollständig unabhängig
-// von Playlist, Werbung, Studio, Google Sheets und BBK — siehe
-// docs/ARCHITECTURE.md, Abschnitt "Media Player — Unabhängigkeit".
+// Öffentliche API des ONLANG Media Players.
+// Vollständig unabhängig von Playlist, Werbung, Studio, Google Sheets
+// und BBK.
 //
-// Öffentliche API (Schritt 2, unverändert bestehen geblieben):
-//   load(video)      Video laden
-//   play()           Video starten
-//   pause()           Pause
-//   stop()            Stop (pause() + currentTime = 0)
-//   currentTime       aktuelle Zeit (Getter-Property)
-//   duration          Gesamtlänge (Getter-Property)
-//   state             aktueller Status (Getter-Property, siehe player-state.js)
+// Unterstützt Videoquellen als:
+//   - direkter String
+//   - { source: '...' }
+//   - { src: '...' }
 //
-// Ergänzt in Schritt 3 (rein additiv, siehe docs/ARCHITECTURE.md):
-//   getState()        wie "state", als aufrufbare Methode
-//   getCurrentTime()  wie "currentTime", als aufrufbare Methode
-//   getDuration()     wie "duration", als aufrufbare Methode
-//   on(eventName, cb) Abo für die sechs erlaubten Roh-Events
-//                     (loadedmetadata, play, pause, ended, error,
-//                     timeupdate) — von der Playlist genutzt, um ohne
-//                     direkten Video-Zugriff auf "ended"/"error" zu
-//                     reagieren.
-//
-// Kein Autoplay, keine Werbung, keine Schleifen, keine Playlist, keine
-// Timer, kein automatisches Nachladen — ausdrücklich nicht enthalten.
-//
-// Klassisches <script>, KEIN ES-Modul (siehe player-state.js für die
-// Begründung).
+// Klassisches <script>, KEIN ES-Modul.
 
 window.ONLANG = window.ONLANG || {};
 window.ONLANG.player = window.ONLANG.player || {};
@@ -40,7 +22,9 @@ window.ONLANG.player = window.ONLANG.player || {};
    */
   function createPlayerController(videoEl) {
     if (!videoEl) {
-      throw new Error('[ONLANG Player] createPlayerController benötigt ein <video>-Element.');
+      throw new Error(
+        '[ONLANG Player] createPlayerController benötigt ein <video>-Element.'
+      );
     }
 
     var state = ns.PlayerState.createPlayerState();
@@ -48,46 +32,47 @@ window.ONLANG.player = window.ONLANG.player || {};
     var timeListeners = [];
     var eventBinding = null;
 
-    // --- Generisches Event-Abo für externe Module (z.B. Playlist,
-    //     siehe docs/ARCHITECTURE.md, Abschnitt "Media Player —
-    //     Unabhängigkeit"). Rein additiv zu onStateChange/onTimeUpdate,
-    //     ändert nichts an der bestehenden State-Logik. Erlaubt sind
-    //     ausschließlich dieselben sechs Events wie in player-events.js.
     var rawEventListeners = {
       loadedmetadata: [],
       play: [],
       pause: [],
       ended: [],
       error: [],
-      timeupdate: [],
+      timeupdate: []
     };
 
     function on(eventName, callback) {
       if (!Object.prototype.hasOwnProperty.call(rawEventListeners, eventName)) {
         throw new Error(
-          '[ONLANG Player] on(): unbekanntes Event "' + eventName + '". Erlaubt: ' +
+          '[ONLANG Player] on(): unbekanntes Event "' +
+          eventName +
+          '". Erlaubt: ' +
           Object.keys(rawEventListeners).join(', ')
         );
       }
+
       if (typeof callback !== 'function') return;
+
       rawEventListeners[eventName].push(callback);
     }
 
     function emit(eventName) {
       var list = rawEventListeners[eventName];
+
       for (var i = 0; i < list.length; i += 1) {
         list[i]();
       }
     }
 
-    // --- Event-Handler: State-Übergänge entstehen AUSSCHLIESSLICH aus
-    //     den sechs erlaubten echten Video-Events, nicht aus Timern
-    //     oder sonstiger Zusatzlogik. ---
+    // ============================================================
+    // VIDEO-EVENTS
+    // ============================================================
 
     function handleLoadedMetadata() {
       if (state.get() === STATES.LOADING) {
         state.set(STATES.READY);
       }
+
       notifyTime();
       emit('loadedmetadata');
     }
@@ -98,17 +83,10 @@ window.ONLANG.player = window.ONLANG.player || {};
     }
 
     function handlePause() {
-      // Das "ended"-Event übernimmt den Endzustand eigenständig; ein
-      // reines pause() (auch durch stop() ausgelöst) führt zu PAUSED.
-      //
-      // Bugfix (gefunden in Schritt 4): Browser feuern nach einem
-      // fehlgeschlagenen Ladeversuch zusätzlich zum "error"-Event auch
-      // ein "pause"-Event (video.paused wird true). Ohne diese Prüfung
-      // würde das den bereits gesetzten ERROR-Status fälschlich wieder
-      // auf PAUSED zurücksetzen.
       if (!videoEl.ended && !videoEl.error) {
         state.set(STATES.PAUSED);
       }
+
       emit('pause');
     }
 
@@ -135,126 +113,236 @@ window.ONLANG.player = window.ONLANG.player || {};
 
     function ensureEventsBound() {
       if (eventBinding) return;
+
       eventBinding = ns.PlayerEvents.bindPlayerEvents(videoEl, {
         loadedmetadata: handleLoadedMetadata,
         play: handlePlay,
         pause: handlePause,
         ended: handleEnded,
         error: handleError,
-        timeupdate: handleTimeUpdate,
+        timeupdate: handleTimeUpdate
       });
     }
 
-    // --- Öffentliche API ---
+
+    // ============================================================
+    // QUELLE ERMITTELN
+    // ============================================================
+
+    function getVideoSource(video) {
+      if (typeof video === 'string') {
+        return video.trim();
+      }
+
+      if (!video || typeof video !== 'object') {
+        return '';
+      }
+
+      // Neue Bootstrap-Struktur
+      if (typeof video.src === 'string' && video.src.trim() !== '') {
+        return video.src.trim();
+      }
+
+      // Alte Player-/Playlist-Struktur
+      if (typeof video.source === 'string' && video.source.trim() !== '') {
+        return video.source.trim();
+      }
+
+      return '';
+    }
+
+
+    // ============================================================
+    // URL NORMALISIEREN
+    // ============================================================
+
+    function normaliseVideoSource(src) {
+      if (!src) return '';
+
+      try {
+        // Absolute URLs bleiben unverändert.
+        if (/^https?:\/\//i.test(src)) {
+          return src;
+        }
+
+        // Relative URL sauber gegen die aktuelle Website auflösen.
+        return new URL(src, window.location.href).href;
+
+      } catch (e) {
+        return src;
+      }
+    }
+
+
+    // ============================================================
+    // ÖFFENTLICHE API
+    // ============================================================
 
     /**
-     * Lädt ein Video. Nimmt entweder direkt einen Quellen-String oder
-     * ein Objekt mit einem "source"-Feld entgegen (Vorbereitung für
-     * spätere Playlist-Einträge, siehe docs/ROADMAP.md Phase 3 — hier
-     * in Schritt 2 noch nicht genutzt).
-     * @param {string | { source: string }} video
+     * Lädt ein Video.
+     *
+     * Unterstützt:
+     *   load('https://...')
+     *   load({ source: '...' })
+     *   load({ src: '...' })
      */
     function load(video) {
-      var src = typeof video === 'string' ? video : (video && video.source);
-
       ensureEventsBound();
 
+      var rawSrc = getVideoSource(video);
+      var src = normaliseVideoSource(rawSrc);
+
       if (!src) {
+        console.error(
+          '[ONLANG Player] Keine Videoquelle gefunden:',
+          video
+        );
+
         state.set(STATES.ERROR);
         return;
       }
 
+      console.log(
+        '[ONLANG Player] Lade Video:',
+        src
+      );
+
       state.set(STATES.LOADING);
+
+      // Alte Quelle sauber entfernen.
+      videoEl.pause();
+      videoEl.removeAttribute('src');
+
+      // Neue Quelle setzen.
       videoEl.src = src;
+
       videoEl.load();
     }
 
+
     function play() {
       var playPromise = videoEl.play();
-      if (playPromise && typeof playPromise.catch === 'function') {
-        playPromise.catch(function () {
-          // Wiedergabe konnte nicht gestartet werden (z.B. keine gültige
-          // Quelle geladen) -> ERROR, kein unbehandelter Promise-Fehler.
+
+      if (
+        playPromise &&
+        typeof playPromise.catch === 'function'
+      ) {
+        playPromise.catch(function (error) {
+          console.warn(
+            '[ONLANG Player] Wiedergabe konnte nicht gestartet werden:',
+            error
+          );
+
           state.set(STATES.ERROR);
         });
       }
     }
 
+
     function pause() {
       videoEl.pause();
     }
 
+
     /**
-     * Stop: ausschließlich pause() + currentTime = 0. Keine Automatik,
-     * kein Nachladen, kein Zurücksetzen der Quelle.
+     * Stop = Pause + zurück auf Anfang.
      */
     function stop() {
       videoEl.pause();
-      videoEl.currentTime = 0;
+
+      try {
+        videoEl.currentTime = 0;
+      } catch (e) {
+        // Kein Fehler nach außen.
+      }
+
       notifyTime();
     }
 
+
     /**
-     * Liefert eine lesbare Fehlermeldung für den aktuellen Fehlerfall.
-     * Wird von player-ui.js verwendet, um z.B. "Kein Testvideo
-     * gefunden." anzuzeigen, ohne dass die UI die MediaError-Codes
-     * selbst kennen muss.
+     * Liefert eine lesbare Fehlermeldung.
      */
     function getErrorMessage() {
       var mediaError = videoEl.error;
+
       if (!mediaError) {
         return 'Video konnte nicht geladen werden.';
       }
+
       switch (mediaError.code) {
-        case 4: // MEDIA_ERR_SRC_NOT_SUPPORTED — deckt auch "Datei nicht gefunden" ab
-          return 'Kein Testvideo gefunden.';
+
+        case 4:
+          return 'Videoquelle wurde nicht gefunden oder wird nicht unterstützt.';
+
         case 3:
           return 'Video konnte nicht dekodiert werden.';
+
         case 2:
           return 'Netzwerkfehler beim Laden des Videos.';
+
         case 1:
           return 'Laden des Videos wurde abgebrochen.';
+
         default:
           return 'Unbekannter Fehler beim Laden des Videos.';
       }
     }
+
 
     return {
       load: load,
       play: play,
       pause: pause,
       stop: stop,
+
       get currentTime() {
         return videoEl.currentTime || 0;
       },
+
       get duration() {
-        return isFinite(videoEl.duration) ? videoEl.duration : 0;
+        return isFinite(videoEl.duration)
+          ? videoEl.duration
+          : 0;
       },
+
       get state() {
         return state.get();
       },
-      // Methoden-Varianten derselben Werte (siehe docs/ARCHITECTURE.md,
-      // Abschnitt "Media Player — Öffentliche API ab Schritt 3"). Rein
-      // additiv — die obigen Getter bleiben unverändert bestehen.
+
       getState: function () {
         return state.get();
       },
+
       getCurrentTime: function () {
         return videoEl.currentTime || 0;
       },
+
       getDuration: function () {
-        return isFinite(videoEl.duration) ? videoEl.duration : 0;
+        return isFinite(videoEl.duration)
+          ? videoEl.duration
+          : 0;
       },
+
       onStateChange: state.onChange,
+
       onTimeUpdate: function (fn) {
-        timeListeners.push(fn);
+        if (typeof fn === 'function') {
+          timeListeners.push(fn);
+        }
       },
-      // Generisches Event-Abo für externe Module, siehe on()/emit() oben.
+
       on: on,
+
       getErrorMessage: getErrorMessage,
-      STATES: STATES,
+
+      STATES: STATES
     };
   }
 
-  ns.PlayerController = { createPlayerController: createPlayerController };
+
+  ns.PlayerController = {
+    createPlayerController: createPlayerController
+  };
+
 })(window.ONLANG.player);
