@@ -78,19 +78,11 @@ window.ONLANG.views = window.ONLANG.views || {};
 
     // Bei Darazsak wird bewusst KEIN Tenant-/Kanal-Umschalter angezeigt.
     // Der Besucher der Vereinswebsite bleibt ausschließlich in Darazsak TV.
+    // Vereinsauswahl entfernt: Der Verein wird ausschließlich über
+    // ?kunde= in der URL bestimmt (siehe main.js / TenantService).
+    // Es wird KEIN sichtbarer Umschalter mehr im Header gerendert.
+    // Die Datenversorgung bleibt unverändert.
     var tenantSwitcherHtml = '';
-
-    if (!darazsak) {
-      tenantSwitcherHtml =
-        '      <div class="tv-header-switcher">' +
-        '        <label class="tv-switcher-label" for="tv-tenant-switcher">' +
-                   escapeHtml(t.club) +
-        '        </label>' +
-        '        <select class="tv-tenant-switcher" id="tv-tenant-switcher" aria-label="' +
-                   escapeHtml(t.switchClub) +
-        '        "></select>' +
-        '      </div>';
-    }
 
     container.innerHTML =
       '<div class="tv-app">' +
@@ -185,16 +177,11 @@ window.ONLANG.views = window.ONLANG.views || {};
     ns.ViewHelpers.applyPresenter(container, data);
     ns.ViewHelpers.renderPartners(container, data);
 
-    // WICHTIG:
-    // Darazsak/HU001 bekommt bewusst KEINEN Kanal-Umschalter.
-    // Alle anderen Tenants funktionieren weiterhin wie bisher.
-    if (!darazsak && onTenantChange) {
-      ns.ViewHelpers.renderTenantSwitcher(
-        container,
-        data.tenant.customerId,
-        onTenantChange
-      );
-    }
+    // Vereinsauswahl entfernt: Es gibt keinen Umschalter mehr, der zu
+    // verdrahten wäre. Die Kunden-ID kommt weiterhin ausschließlich aus
+    // ?kunde= (URL). onTenantChange bleibt in der Signatur erhalten,
+    // wird aber bewusst nicht mehr verwendet.
+    void onTenantChange;
 
     return ns.ViewHelpers.createModuleViews(container);
   }
