@@ -1,26 +1,13 @@
 /**
  * ONLANG TV – Netlify Bootstrap Proxy
- * TV 3.1
- *
- * Verantwortlichkeit:
- * - Apps-Script-WebApp serverseitig aufrufen
- * - Weiterleitungen von Google verfolgen
- * - Bootstrap-JSON an den Browser weitergeben
- *
- * Noch keine Verbindung zu:
- * - main.js
- * - Player
- * - Playlist
- * - Views
+ * TV 3.2
  */
 
 const APPS_SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycbxhH04vCiuFn4jhpENBMpCL9EC95f4Y43buzwJXg7zvb-iTlIUXF8lVl1g84gWXIHPq/exec";
+  "https://script.google.com/macros/s/AKfycbzrvPIQsGaqHP28_9G-geahMB0QMYHlbylnGLUTeJagi1Sc_rgPVErasrhc0HGGthppYA/exec";
 
 export default async function handler(request) {
-
   try {
-
     const requestUrl = new URL(request.url);
 
     const kunde = String(
@@ -28,7 +15,6 @@ export default async function handler(request) {
     ).trim();
 
     if (!kunde) {
-
       return new Response(
         JSON.stringify({
           success: false,
@@ -45,23 +31,22 @@ export default async function handler(request) {
           }
         }
       );
-
     }
 
     const appsScriptUrl = new URL(APPS_SCRIPT_URL);
 
     appsScriptUrl.searchParams.set(
       "action",
-      "getTvBootstrap"
+      "get_tv_playlist"
     );
 
     appsScriptUrl.searchParams.set(
-      "kunde",
+      "kundenId",
       kunde
     );
 
     console.log(
-      "Bootstrap-Anfrage an Apps Script:",
+      "TV-Playlist-Anfrage an Apps Script:",
       appsScriptUrl.toString()
     );
 
@@ -76,12 +61,6 @@ export default async function handler(request) {
     const responseText = await response.text();
 
     if (!response.ok) {
-
-      console.error(
-        "Apps Script antwortete mit HTTP",
-        response.status
-      );
-
       return new Response(
         JSON.stringify({
           success: false,
@@ -98,7 +77,6 @@ export default async function handler(request) {
           }
         }
       );
-
     }
 
     return new Response(
@@ -113,18 +91,12 @@ export default async function handler(request) {
     );
 
   } catch (error) {
-
-    console.error(
-      "Bootstrap-Proxy fehlgeschlagen:",
-      error
-    );
-
     return new Response(
       JSON.stringify({
         success: false,
         error: {
-          code: "BOOTSTRAP_PROXY_FAILED",
-          message: "Bootstrap konnte nicht geladen werden."
+          code: "TV_PLAYLIST_PROXY_FAILED",
+          message: "TV-Playlist konnte nicht geladen werden."
         }
       }),
       {
@@ -135,7 +107,5 @@ export default async function handler(request) {
         }
       }
     );
-
   }
-
 }
