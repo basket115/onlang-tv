@@ -155,11 +155,11 @@ export default async function handler(request) {
 
     appsScriptUrl.searchParams.set(
       "action",
-      "get_tv_playlist"
+      "getTvBootstrap"
     );
 
     appsScriptUrl.searchParams.set(
-      "kundenId",
+      "kunde",
       customer.kundenId
     );
 
