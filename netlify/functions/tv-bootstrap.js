@@ -159,7 +159,7 @@ export default async function handler(request) {
     );
 
     appsScriptUrl.searchParams.set(
-      "kunde",
+      "kundenId",
       customer.kundenId
     );
 
