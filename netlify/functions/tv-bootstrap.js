@@ -160,7 +160,7 @@ export default async function handler(request) {
 
     appsScriptUrl.searchParams.set(
       "kundenId",
-      kunden
+      customer.kundenId
     );
 
     const response = await fetch(
