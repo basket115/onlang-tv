@@ -53,7 +53,40 @@ window.ONLANG.views = window.ONLANG.views || {};
     ns.ViewHelpers.applyHeader(container, data);
     ns.ViewHelpers.applyPresenter(container, data);
     renderTicker(container, data);
+    setupEmbedAutoHeight(container);
     return ns.ViewHelpers.createModuleViews(container);
+  }
+
+  function setupEmbedAutoHeight(container) {
+    if (window.parent === window) return;
+
+    var lastHeight = 0;
+    var sendHeight = function () {
+      var app = container.querySelector('.tv-app--embed');
+      if (!app) return;
+      var height = Math.ceil(app.getBoundingClientRect().height);
+      if (!height || height === lastHeight) return;
+      lastHeight = height;
+      window.parent.postMessage({
+        type: 'onlang-tv-resize',
+        height: height
+      }, '*');
+    };
+
+    sendHeight();
+
+    if (window.ResizeObserver) {
+      var observer = new ResizeObserver(sendHeight);
+      observer.observe(container);
+      observer.observe(document.documentElement);
+    } else {
+      window.addEventListener('load', sendHeight);
+      window.addEventListener('resize', sendHeight);
+    }
+
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(sendHeight);
+    }
   }
 
   function renderTicker(container, data) {
