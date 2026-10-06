@@ -46,9 +46,10 @@ window.ONLANG.views = window.ONLANG.views || {};
         partners: 'Partnereink',
         footerVersion: 'ONLANG TV – Bemutató verzió 1.0',
         footerName: 'ONLANG TV',
-        footerText: '© 2026 ONLANG · Digitális kommunikációs platform egyesületeknek és szövetségeknek',
+        footerText: '© {jahr} ONLANG · Digitális kommunikációs platform egyesületeknek és szövetségeknek',
         welcomePrefix: 'Üdvözöljük a ',
         welcomeSuffix: ' csatornán – powered by ONLANG',
+        welcomeSuffixClub: ' csatornán',
         automaticTicker: 'Automatikus műsorszórás',
         sponsorTicker: 'Szponzorhirdetések a műsorszámok között',
         topicFallback: 'Téma',
@@ -68,9 +69,10 @@ window.ONLANG.views = window.ONLANG.views || {};
       partners: 'Unsere Partner',
       footerVersion: 'ONLANG TV – Präsentationsversion 1.0',
       footerName: 'ONLANG TV',
-      footerText: '© 2026 ONLANG · Digitale Kommunikationsplattform für Vereine und Verbände',
+      footerText: '© {jahr} ONLANG · Digitale Kommunikationsplattform für Vereine und Verbände',
       welcomePrefix: 'Willkommen bei ',
       welcomeSuffix: ' – powered by ONLANG',
+      welcomeSuffixClub: '',
       automaticTicker: 'Automatischer Sendebetrieb',
       sponsorTicker: 'Sponsorenwerbung zwischen den Beiträgen',
       topicFallback: 'Thema',
@@ -124,10 +126,12 @@ window.ONLANG.views = window.ONLANG.views || {};
       '          <span class="tv-broadcast-date"></span>' +
       '          <span class="tv-broadcast-time"></span>' +
       '        </div>' +
-      '        <div class="tv-broadcast-operation">' +
-      '          <span class="tv-operation-dot"></span>' +
-                 escapeHtml(t.automaticOperation) +
-      '        </div>' +
+      (isDemo()
+        ? '        <div class="tv-broadcast-operation">' +
+          '          <span class="tv-operation-dot"></span>' +
+                     escapeHtml(t.automaticOperation) +
+          '        </div>'
+        : '') +
       '      </div>' +
 
       tenantSwitcherHtml +
@@ -168,7 +172,7 @@ window.ONLANG.views = window.ONLANG.views || {};
 
       '  <footer class="tv-footer">' +
       '    <strong>' + escapeHtml(isDemo() ? t.footerVersion : t.footerName) + '</strong>' +
-      '    <span>' + escapeHtml(t.footerText) + '</span>' +
+      '    <span>' + escapeHtml(t.footerText.replace('{jahr}', new Date().getFullYear())) + '</span>' +
       '  </footer>' +
       '</div>';
 
@@ -231,7 +235,7 @@ window.ONLANG.views = window.ONLANG.views || {};
     var messages = [
       t.welcomePrefix +
         (data.tenant.name || 'ONLANG TV') +
-        t.welcomeSuffix
+        (demo ? t.welcomeSuffix : t.welcomeSuffixClub)
     ];
 
     if (demo) {

@@ -638,6 +638,11 @@ body {
   display: none;
 }
 
+/* Mit ?debug=1 (siehe player-ui.js) sind die technischen Zeilen sichtbar. */
+.player.player--debug > .player-row { display: flex; }
+.player.player--debug > .player-rule { display: block; }
+.player.player--debug > .player-row[hidden] { display: none; }
+
 .player {
   padding-bottom: 18px;
 }

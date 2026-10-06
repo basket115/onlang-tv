@@ -33,6 +33,16 @@ window.ONLANG.player = window.ONLANG.player || {};
     return !!service && service.getLanguage() === 'hu';
   }
 
+  // ?debug=1 zeigt die technischen Zeilen (Status, Zeit, Modus, Ablauf)
+  // unter dem Player. Für Besucher bleiben sie unsichtbar (layout.css).
+  function isDebug() {
+    try {
+      return new URLSearchParams(window.location.search).get('debug') === '1';
+    } catch (e) {
+      return false;
+    }
+  }
+
   function getTexts() {
     if (isHungarian()) {
       return {
@@ -72,7 +82,7 @@ window.ONLANG.player = window.ONLANG.player || {};
     var t = getTexts();
 
     container.innerHTML =
-      '<main class="player">' +
+      '<main class="player' + (isDebug() ? ' player--debug' : '') + '">' +
 
       '  <div class="player-window">' +
       '    <video class="player-video"></video>' +
@@ -175,6 +185,7 @@ window.ONLANG.player = window.ONLANG.player || {};
 
     function updateStatus(currentState) {
       view.statusEl.textContent = currentState;
+      console.log('[ONLANG Player] Status:', currentState);
 
       if (currentState === statusSource.STATES.ERROR) {
 

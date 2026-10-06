@@ -87,7 +87,7 @@ window.ONLANG.views = window.ONLANG.views || {};
       '  </main>' +
       '  <footer class="tv-footer tv-footer--embed">' +
       '    <strong>' + (isDemo() ? t.footerVersion : t.footerName) + '</strong>' +
-      '    <span>© 2026 ONLANG</span>' +
+      '    <span>© ' + new Date().getFullYear() + ' ONLANG</span>' +
       '  </footer>' +
       '</div>';
 
