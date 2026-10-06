@@ -101,6 +101,30 @@ await test('Zeitraum: noch nicht gestartet und abgelaufen fallen weg, Ende ohne 
   gleich(body.playlist.videos.map((v) => v.id), ['b3']);
 });
 
+await test('Vorschaubild: eigenes Bild geht vor, sonst Standbild von Cloudinary, bei YouTube und anderen Adressen keins', async () => {
+  const cloud = 'https://res.cloudinary.com/demo/video/upload/v1712345678/tv/dunk.mp4';
+  tabellen = {
+    kunden: [V002],
+    tv_inhalte: [
+      { id: 'p1', typ: 'VIDEO', titel: 'Cloudinary', video_url: cloud, poster_url: '' },
+      { id: 'p2', typ: 'VIDEO', titel: 'Cloudinary mit Bild', video_url: cloud, poster_url: 'https://bilder.test/eigen.jpg' },
+      { id: 'p3', typ: 'VIDEO', titel: 'Cloudinary mit Zusatz', video_url: 'https://res.cloudinary.com/demo/video/upload/q_auto/tv/dunk.MOV?x=1', poster_url: null },
+      { id: 'p4', typ: 'VIDEO', titel: 'YouTube', video_url: 'https://youtu.be/abcdefghijk', poster_url: '' },
+      { id: 'p5', typ: 'VIDEO', titel: 'Anderes MP4', video_url: 'https://x.test/video/upload/a.mp4', poster_url: '' },
+      { id: 'p6', typ: 'VIDEO', titel: 'Cloudinary-Bild, kein Video', video_url: 'https://res.cloudinary.com/demo/image/upload/a.mp4', poster_url: '' },
+    ],
+  };
+  const { body } = await abruf('?kunde=V002');
+  gleich(body.playlist.videos.map((v) => [v.id, v.poster]), [
+    ['p1', 'https://res.cloudinary.com/demo/video/upload/v1712345678/tv/dunk.jpg'],
+    ['p2', 'https://bilder.test/eigen.jpg'],
+    ['p3', 'https://res.cloudinary.com/demo/video/upload/q_auto/tv/dunk.jpg'],
+    ['p4', ''],
+    ['p5', ''],
+    ['p6', ''],
+  ]);
+});
+
 await test('bekannter Kunde ohne Videos: gebrandet, leere Liste, keine Spots, ungarisch', async () => {
   tabellen = {
     kunden: [HU001],

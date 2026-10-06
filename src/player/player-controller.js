@@ -529,6 +529,13 @@ window.ONLANG.player = window.ONLANG.player || {};
       // Alte Quelle entfernen.
       videoEl.removeAttribute('src');
 
+      // Vorschaubild (falls mitgegeben), bis das Video startet.
+      if (video && typeof video.poster === 'string' && video.poster) {
+        videoEl.poster = video.poster;
+      } else {
+        videoEl.removeAttribute('poster');
+      }
+
       // Neue Quelle setzen.
       videoEl.src = src;
 

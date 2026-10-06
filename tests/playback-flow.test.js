@@ -37,7 +37,7 @@ function attrappe() {
   const player = {
     quelle: '',
     on(name, fn) { listeners[name] = fn; },
-    load(medium) { player.quelle = medium.source; listeners.loadedmetadata(); },
+    load(medium) { player.quelle = medium.source; player.bild = medium.poster || ''; listeners.loadedmetadata(); },
     play() { listeners.play(); },
     pause() {},
     stop() {},
@@ -87,6 +87,23 @@ test('mit Spot des Vereins: Spot zuerst, dann Video, Ankündigung Spot und danac
   player.ende();
   gleich([player.quelle, flow.getNowPlayingInfo().title], [v1.src, 'Video 1']);
   gleich(flow.getUpcomingInfo(), { nextTag: 'ALS NÄCHSTES', nextTitle: 'Spot vom Verein', afterTag: 'DANACH', afterTitle: 'Video 2' });
+});
+
+test('während des Spots meldet der Ablauf den Modus Werbung (die Programmliste markiert dann kein Video)', () => {
+  const { player, flow } = starte([v1, v2], [spot]);
+  gleich([flow.getCurrentMode(), flow.MODES.ADVERTISEMENT], ['ADVERTISEMENT', 'ADVERTISEMENT']);
+  player.ende();
+  gleich(flow.getCurrentMode(), 'CONTENT');
+  player.ende();
+  gleich([flow.getCurrentMode(), player.quelle], ['ADVERTISEMENT', spot.src]);
+});
+
+test('Vorschaubild des Videos geht an den Player, beim Spot keins', () => {
+  const mitBild = { ...v1, poster: 'https://x.test/1.jpg' };
+  const { player } = starte([mitBild, v2], [spot]);
+  gleich([player.quelle, player.bild], [spot.src, '']);
+  player.ende();
+  gleich([player.quelle, player.bild], [v1.src, 'https://x.test/1.jpg']);
 });
 
 test('inaktiver Spot zählt nicht', () => {

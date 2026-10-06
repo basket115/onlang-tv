@@ -24,6 +24,8 @@ const KUNDEN_MUSTER = /^[A-Z0-9]{2,12}$/;
 const FARB_MUSTER = /^#[0-9a-f]{6}$/i;
 const ADRESS_MUSTER = /^https?:\/\//i;
 const NUR_DATUM_MUSTER = /^\d{4}-\d{2}-\d{2}$/;
+const CLOUDINARY_VIDEO_MUSTER = /^https:\/\/res\.cloudinary\.com\/[^/]+\/video\/upload\/.+/i;
+const ENDUNG_MUSTER = /\.[a-z0-9]{2,5}$/i;
 
 const KUNDEN_SPALTEN =
   "kunden_id,verein_name,short_name,logo_verein,thema_farbe,sprache";
@@ -116,9 +118,18 @@ function imZeitraum(row, jetzt) {
   return true;
 }
 
+// Cloudinary liefert zu jedem Video ein Standbild, wenn die Endung durch
+// .jpg ersetzt wird. Für andere Adressen (auch YouTube) gibt es keins: ''.
+function cloudinaryStandbild(videoUrl) {
+  if (!CLOUDINARY_VIDEO_MUSTER.test(videoUrl)) return "";
+  const pfad = videoUrl.split(/[?#]/)[0];
+  return ENDUNG_MUSTER.test(pfad) ? pfad.replace(ENDUNG_MUSTER, ".jpg") : pfad + ".jpg";
+}
+
 function zuMedium(row, index) {
   const typ = text(row.typ).toUpperCase() || "VIDEO";
-  const poster = text(row.poster_url);
+  // Eigenes Vorschaubild, sonst das Standbild von Cloudinary.
+  const poster = text(row.poster_url) || cloudinaryStandbild(text(row.video_url));
 
   return {
     id: text(row.id) || `tv-${index + 1}`,

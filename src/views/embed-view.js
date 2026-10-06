@@ -98,35 +98,69 @@ window.ONLANG.views = window.ONLANG.views || {};
     return ns.ViewHelpers.createModuleViews(container);
   }
 
+  // Meldet der einbettenden Seite die Höhe des Inhalts (postMessage
+  // "onlang-tv-resize"), damit sie ihr Fenster ohne eigenen Rollbalken
+  // anpassen kann. Gemeldet wird bei jeder Größenänderung, auch beim
+  // Kleinerwerden: Inhalt und Fensterbreite (ResizeObserver, resize),
+  // Videowechsel und Programmliste (MutationObserver, loadedmetadata).
   function setupEmbedAutoHeight(container) {
     if (window.parent === window) return;
 
+    var ENTPRELLEN_MS = 80;
     var lastHeight = 0;
-    var sendHeight = function () {
+    var timer = null;
+
+    function sendHeight() {
+      timer = null;
       var app = container.querySelector('.tv-app--embed');
       if (!app) return;
-      var height = Math.ceil(app.getBoundingClientRect().height);
+
+      // Höhe des Inhalts plus der Rand der Seite (body-padding).
+      var body = window.getComputedStyle(document.body);
+      var height = Math.ceil(
+        app.getBoundingClientRect().height +
+        (parseFloat(body.paddingTop) || 0) +
+        (parseFloat(body.paddingBottom) || 0)
+      );
+
       if (!height || height === lastHeight) return;
       lastHeight = height;
       window.parent.postMessage({
         type: 'onlang-tv-resize',
         height: height
       }, '*');
-    };
+    }
+
+    function scheduleHeight() {
+      if (timer) window.clearTimeout(timer);
+      timer = window.setTimeout(sendHeight, ENTPRELLEN_MS);
+    }
 
     sendHeight();
 
-    if (window.ResizeObserver) {
-      var observer = new ResizeObserver(sendHeight);
-      observer.observe(container);
-      observer.observe(document.documentElement);
-    } else {
-      window.addEventListener('load', sendHeight);
-      window.addEventListener('resize', sendHeight);
+    var app = container.querySelector('.tv-app--embed');
+
+    if (window.ResizeObserver && app) {
+      new ResizeObserver(scheduleHeight).observe(app);
     }
 
+    // Videowechsel, "Jetzt läuft" und Programmliste ändern den Inhalt.
+    if (window.MutationObserver && app) {
+      new MutationObserver(scheduleHeight).observe(app, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['hidden', 'class', 'style']
+      });
+    }
+
+    window.addEventListener('load', scheduleHeight);
+    window.addEventListener('resize', scheduleHeight);
+    window.addEventListener('orientationchange', scheduleHeight);
+    container.addEventListener('loadedmetadata', scheduleHeight, true);
+
     if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(sendHeight);
+      document.fonts.ready.then(scheduleHeight);
     }
   }
 

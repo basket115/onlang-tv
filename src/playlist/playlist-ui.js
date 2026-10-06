@@ -114,6 +114,12 @@ window.ONLANG.playlist = window.ONLANG.playlist || {};
           controller.hasAdvertisement() ? t.subtitle : t.subtitleNoAds;
       }
 
+      // Läuft gerade ein Werbespot, ist kein Video "dran".
+      var adRunning =
+        !!controller.getCurrentMode &&
+        !!controller.MODES &&
+        controller.getCurrentMode() === controller.MODES.ADVERTISEMENT;
+
       view.listEl.innerHTML = '';
       view.messageEl.hidden = true;
       view.messageEl.textContent = '';
@@ -130,7 +136,7 @@ window.ONLANG.playlist = window.ONLANG.playlist || {};
         li.className = 'playlist-item';
         li.tabIndex = 0;
 
-        var isCurrent = index === currentIndex;
+        var isCurrent = index === currentIndex && !adRunning;
 
         if (isCurrent) {
           li.classList.add('active');

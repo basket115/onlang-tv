@@ -104,7 +104,7 @@ window.ONLANG.playback = window.ONLANG.playback || {};
         currentMode = MODES.CONTENT;
 
         // Nur laden, nicht automatisch starten.
-        player.load({ source: firstItem.src });
+        player.load({ source: firstItem.src, poster: firstItem.poster });
 
         mediaStartPending = false;
         setFlowState(STATES.CONTENT_READY);
@@ -199,7 +199,8 @@ window.ONLANG.playback = window.ONLANG.playback || {};
       );
 
       player.load({
-        source: item.src
+        source: item.src,
+        poster: item.poster
       });
 
       // KEIN player.play() hier.
@@ -420,7 +421,8 @@ window.ONLANG.playback = window.ONLANG.playback || {};
         currentMode = MODES.CONTENT;
 
         player.load({
-          source: item.src
+          source: item.src,
+          poster: item.poster
         });
       }
 
