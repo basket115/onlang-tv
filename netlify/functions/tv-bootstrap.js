@@ -1,317 +1,265 @@
 /**
- * ONLANG TV – Netlify Bootstrap Proxy
- * TV 3.3
+ * ONLANG TV – Netlify Bootstrap (Supabase)
+ * TV 4.0
+ *
+ * Liest per Supabase-REST mit dem GEHEIMEN SUPABASE_SECRET_KEY (nur
+ * apikey-Header, geht nie an den Browser):
+ *   - kunden      -> Sendername, Logo, Akzentfarbe, Sprache
+ *   - tv_inhalte  -> Videos und Werbespots des Kunden
+ *
+ * Die Antwort hat das bisherige Bootstrap-Format (tenant, settings,
+ * playlist.videos, advertising.items, live, warnings, meta). Neu ist nur
+ * meta.language ("de" | "hu").
+ *
+ * Fehlerantworten enthalten nie technische Details, nur einen Code:
+ *   CUSTOMER_UNKNOWN -> Kunde fehlt oder ist unbekannt (Seite zeigt den
+ *                       neutralen Demo-Sender)
+ *   TV_UNAVAILABLE   -> Supabase nicht erreichbar (Seite zeigt nur einen
+ *                       Hinweis, keine Demo-Videos)
  */
 
-const APPS_SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycbzrvPIQsGaqHP28_9G-geahMB0QMYHlbylnGLUTeJagi1Sc_rgPVErasrhc0HGGthppYA/exec";
+const LOG = "[TV]";
 
-const CUSTOMER_ALIASES = {
-  "v002": { kundenId: "V002", slug: "scorpions-sggierath" },
-  "scorpions-sggierath": { kundenId: "V002", slug: "scorpions-sggierath" },
-  "v006": { kundenId: "V006", slug: "bbk-duesseldorf" },
-  "bbk-duesseldorf": { kundenId: "V006", slug: "bbk-duesseldorf" },
-  "hu001": { kundenId: "HU001", slug: "HU001" },
-  "darazsak": { kundenId: "HU001", slug: "HU001" }
+const KUNDEN_MUSTER = /^[A-Z0-9]{2,12}$/;
+const FARB_MUSTER = /^#[0-9a-f]{6}$/i;
+const ADRESS_MUSTER = /^https?:\/\//i;
+const NUR_DATUM_MUSTER = /^\d{4}-\d{2}-\d{2}$/;
+const CLOUDINARY_VIDEO_MUSTER = /^https:\/\/res\.cloudinary\.com\/[^/]+\/video\/upload\/.+/i;
+const ENDUNG_MUSTER = /\.[a-z0-9]{2,5}$/i;
+
+const KUNDEN_SPALTEN =
+  "kunden_id,verein_name,short_name,logo_verein,thema_farbe,sprache";
+
+const TV_SPALTEN =
+  "id,typ,titel,video_url,poster_url,reihenfolge,start_am,ende_am";
+
+// Hintergrund, Fläche und Text sind für alle Sender gleich dunkel. Nur
+// die Akzentfarbe kommt vom Kunden (kunden.thema_farbe).
+const THEMA = {
+  accent: "#f28c00",
+  background: "#080808",
+  surface: "#151515",
+  text: "#ffffff"
 };
 
-function resolveCustomer(raw) {
-  const key = String(raw || "").trim();
+const PRAESENTIERT = {
+  de: " präsentiert von",
+  hu: " bemutatja"
+};
 
-  return CUSTOMER_ALIASES[key.toLowerCase()] || {
-    kundenId: key,
-    slug: key
+function text(wert) {
+  return wert === undefined || wert === null ? "" : String(wert).trim();
+}
+
+function antwort(status, body) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store"
+    }
+  });
+}
+
+function fehler(status, code, message) {
+  return antwort(status, { success: false, error: { code, message } });
+}
+
+// null bedeutet technischer Fehler, [] bedeutet keine Zeilen.
+async function ladeZeilen(tabelle, query) {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const secretKey = process.env.SUPABASE_SECRET_KEY;
+
+  if (!supabaseUrl || !secretKey) {
+    console.error(`${LOG} SUPABASE_URL/SUPABASE_SECRET_KEY nicht gesetzt`);
+    return null;
+  }
+
+  try {
+    const response = await fetch(
+      `${supabaseUrl}/rest/v1/${tabelle}?${query}`,
+      {
+        method: "GET",
+        headers: { apikey: secretKey },
+        signal: AbortSignal.timeout(5000)
+      }
+    );
+
+    if (!response.ok) {
+      console.error(`${LOG} Unerwarteter Status (${tabelle})`, response.status);
+      return null;
+    }
+
+    const rows = await response.json();
+    return Array.isArray(rows) ? rows : null;
+  } catch (error) {
+    console.error(`${LOG} Anfrage fehlgeschlagen (${tabelle})`, error);
+    return null;
+  }
+}
+
+// Start/Ende leer oder jetzt im Zeitraum. Ein Ende ohne Uhrzeit
+// (2026-10-31) gilt bis zum Ende dieses Tages.
+function imZeitraum(row, jetzt) {
+  const start = text(row.start_am);
+  const ende = text(row.ende_am);
+
+  if (start) {
+    const ab = new Date(start).getTime();
+    if (!isNaN(ab) && jetzt < ab) return false;
+  }
+
+  if (ende) {
+    let bis = new Date(ende).getTime();
+    if (NUR_DATUM_MUSTER.test(ende)) bis += 24 * 60 * 60 * 1000;
+    if (!isNaN(bis) && jetzt > bis) return false;
+  }
+
+  return true;
+}
+
+// Cloudinary liefert zu jedem Video ein Standbild, wenn die Endung durch
+// .jpg ersetzt wird. Für andere Adressen (auch YouTube) gibt es keins: ''.
+function cloudinaryStandbild(videoUrl) {
+  if (!CLOUDINARY_VIDEO_MUSTER.test(videoUrl)) return "";
+  const pfad = videoUrl.split(/[?#]/)[0];
+  return ENDUNG_MUSTER.test(pfad) ? pfad.replace(ENDUNG_MUSTER, ".jpg") : pfad + ".jpg";
+}
+
+function zuMedium(row, index) {
+  const typ = text(row.typ).toUpperCase() || "VIDEO";
+  // Eigenes Vorschaubild, sonst das Standbild von Cloudinary.
+  const poster = text(row.poster_url) || cloudinaryStandbild(text(row.video_url));
+
+  return {
+    id: text(row.id) || `tv-${index + 1}`,
+    title: text(row.titel) || "TV-Inhalt",
+    description: "",
+    category: typ,
+    durationLabel: "",
+    src: text(row.video_url),
+    poster: ADRESS_MUSTER.test(poster) ? poster : "",
+    badge: null,
+    active: true
   };
 }
 
-function tenantFor(customer) {
-  if (customer.kundenId === "V002") {
-    return {
-      customerId: "scorpions-sggierath",
-      name: "Scorpions TV",
-      tagline: "Das Videoportal der Basketballabteilung SG Gierath",
-      logoUrl: "public/assets/logos/scorpions-logo.svg",
-      logoText: "SGG",
-      theme: {
-        accent: "#d71920",
-        background: "#05070b",
-        surface: "#10131a",
-        text: "#ffffff"
-      },
-      presenter: {
-        label: "Scorpions TV präsentiert von",
-        name: "ONLANG",
-        logoUrl: ""
-      }
-    };
-  }
-
-  if (customer.kundenId === "V006") {
-    return {
-      customerId: "bbk-duesseldorf",
-      name: "BBK TV",
-      tagline: "Das Videoportal des Basketballkreises Düsseldorf / Neuss",
-      logoUrl: "public/assets/logos/bbk-logo.png",
-      logoText: "BBK",
-      theme: {
-        accent: "#ff7a1a",
-        background: "#0f172a",
-        surface: "#18233d",
-        text: "#ffffff"
-      },
-      presenter: {
-        label: "BBK TV präsentiert von",
-        name: "ONLANG",
-        logoUrl: ""
-      }
-    };
-  }
-
-  if (customer.kundenId === "HU001") {
-    return {
-      customerId: "HU001",
-      name: "Darazsak TV",
-      tagline: "A Darazsak videócsatornája",
-      logoUrl: "public/assets/logos/Darazsak Logo.png",
-      logoText: "DARAZSAK",
-      theme: {
-        accent: "#f2b705",
-        background: "#080808",
-        surface: "#151515",
-        text: "#ffffff"
-      },
-      presenter: {
-        label: "Darazsak TV bemutatja",
-        name: "ONLANG",
-        logoUrl: ""
-      }
-    };
-  }
+function zuTenant(kunde, sprache) {
+  const sender =
+    (text(kunde.short_name) || text(kunde.verein_name) || "ONLANG") + " TV";
+  const logo = text(kunde.logo_verein);
+  const farbe = text(kunde.thema_farbe);
 
   return {
-    customerId: customer.slug,
-    name: "ONLANG TV",
-    tagline: "Das Videoportal für Vereine und Verbände",
-    logoUrl: "",
-    logoText: "OT",
+    customerId: text(kunde.kunden_id),
+    name: sender,
+    tagline: "",
+    logoUrl: ADRESS_MUSTER.test(logo) ? logo : "",
+    logoText: "",
     theme: {
-      accent: "#f2b705",
-      background: "#080808",
-      surface: "#151515",
-      text: "#ffffff"
+      ...THEMA,
+      accent: FARB_MUSTER.test(farbe) ? farbe : THEMA.accent
     },
     presenter: {
-      label: "ONLANG TV präsentiert von",
+      label: sender + PRAESENTIERT[sprache],
       name: "ONLANG",
       logoUrl: ""
     }
   };
 }
 
-function toMediaItem(item, index) {
-  return {
-    id: String(item.TV_ID || `tv-${index + 1}`),
-    title: String(item.Titel || "TV-Inhalt"),
-    description: "",
-    category: String(item.Typ || "VIDEO"),
-    durationLabel: String(item.Typ || "VIDEO"),
-    src: String(item.Video_URL || ""),
-    poster: String(item.Poster_URL || ""),
-    badge: null,
-    active: String(item.Aktiv || "JA").toUpperCase() !== "NEIN"
-  };
-}
-
 export default async function handler(request) {
-  try {
-    const requestUrl = new URL(request.url);
+  const params = new URL(request.url).searchParams;
 
-    const requested = String(
-      requestUrl.searchParams.get("kunde") || ""
-    ).trim();
+  const requested = text(params.get("kunde") || params.get("tenant"));
+  const kundenId = requested.toUpperCase();
 
-    if (!requested) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: {
-            code: "CUSTOMER_ID_REQUIRED",
-            message: "Kunden-ID fehlt."
-          }
-        }),
-        {
-          status: 400,
-          headers: {
-            "Content-Type": "application/json; charset=utf-8",
-            "Cache-Control": "no-store"
-          }
-        }
-      );
-    }
+  if (!KUNDEN_MUSTER.test(kundenId)) {
+    return fehler(200, "CUSTOMER_UNKNOWN", "Kunde unbekannt.");
+  }
 
-    const customer = resolveCustomer(requested);
+  const filter = `kunden_id=eq.${encodeURIComponent(kundenId)}`;
 
-    const appsScriptUrl = new URL(APPS_SCRIPT_URL);
+  const [kunden, inhalte] = await Promise.all([
+    ladeZeilen("kunden", `${filter}&select=${KUNDEN_SPALTEN}`),
+    ladeZeilen(
+      "tv_inhalte",
+      `${filter}&aktiv=eq.true&select=${TV_SPALTEN}` +
+        "&order=reihenfolge.asc.nullslast,id.asc"
+    )
+  ]);
 
-    appsScriptUrl.searchParams.set(
-      "action",
-      "get_tv_playlist"
-    );
+  if (!kunden || !inhalte) {
+    return fehler(503, "TV_UNAVAILABLE", "TV gerade nicht erreichbar.");
+  }
 
-    appsScriptUrl.searchParams.set(
-      "kundenId",
-      customer.kundenId
-    );
+  if (kunden.length !== 1) {
+    return fehler(200, "CUSTOMER_UNKNOWN", "Kunde unbekannt.");
+  }
 
-    const response = await fetch(
-      appsScriptUrl.toString(),
-      {
-        method: "GET",
-        redirect: "follow"
-      }
-    );
+  const sprache =
+    text(kunden[0].sprache).toLowerCase() === "hu" ? "hu" : "de";
 
-    const responseText = await response.text();
+  const tenant = zuTenant(kunden[0], sprache);
 
-    if (!response.ok) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: {
-            code: "APPS_SCRIPT_REQUEST_FAILED",
-            message: `Apps Script antwortete mit HTTP ${response.status}`
-          }
-        }),
-        {
-          status: 502,
-          headers: {
-            "Content-Type": "application/json; charset=utf-8",
-            "Cache-Control": "no-store"
-          }
-        }
-      );
-    }
+  const jetzt = Date.now();
+  const videos = [];
+  const ads = [];
 
-    const playlistResult = JSON.parse(responseText);
+  inhalte
+    .filter((row) => imZeitraum(row, jetzt))
+    .forEach((row, index) => {
+      const media = zuMedium(row, index);
 
-    if (!playlistResult || playlistResult.success !== true) {
-      return new Response(
-        JSON.stringify(
-          playlistResult || {
-            success: false,
-            error: {
-              code: "TV_PLAYLIST_ERROR",
-              message: "TV-Playlist konnte nicht geladen werden."
-            }
-          }
-        ),
-        {
-          status: 200,
-          headers: {
-            "Content-Type": "application/json; charset=utf-8",
-            "Cache-Control": "no-store"
-          }
-        }
-      );
-    }
+      if (!ADRESS_MUSTER.test(media.src)) return;
 
-    const items = Array.isArray(playlistResult.items)
-      ? playlistResult.items
-      : [];
-
-    const ads = [];
-    const videos = [];
-
-    items.forEach((item, index) => {
-      const media = toMediaItem(item, index);
-
-      if (!media.src || media.active === false) return;
-
-      if (
-        String(item.Typ || "").toUpperCase() === "WERBESPOT"
-      ) {
+      if (media.category === "WERBESPOT") {
         ads.push(media);
       } else {
         videos.push(media);
       }
     });
 
-    const tenant = tenantFor(customer);
+  // Ohne Videos gibt es nichts, wozwischen ein Spot laufen könnte.
+  const spots = videos.length > 0 ? ads : [];
 
-    const bootstrap = {
-      success: true,
+  return antwort(200, {
+    success: true,
 
-      tenant: tenant,
+    tenant: tenant,
 
-      settings: {
-        defaultView: "full",
-        autoplay: true,
-        mutedAutoplay: true,
-        loopPlaylist: true,
-        advertisingMode:
-          playlistResult.adsEnabled === false
-            ? "off"
-            : "startup"
-      },
+    settings: {
+      defaultView: "full",
+      autoplay: true,
+      mutedAutoplay: true,
+      loopPlaylist: true,
+      advertisingMode: spots.length > 0 ? "startup" : "off"
+    },
 
-      playlist: {
-        videos: videos
-      },
+    playlist: {
+      videos: videos
+    },
 
-      advertising: {
-        items: ads
-      },
+    advertising: {
+      items: spots
+    },
 
-      live: {
-        enabled: false,
-        title: "",
-        date: "",
-        time: ""
-      },
+    live: {
+      enabled: false,
+      title: "",
+      date: "",
+      time: ""
+    },
 
-      warnings: [],
+    warnings: [],
 
-      meta: {
-        requestedCustomerId: requested,
-        loadedCustomerId: tenant.customerId,
-        fallbackUsed: false,
-        kundenId: customer.kundenId,
-        tvKey:
-          playlistResult.tvKey ||
-          customer.slug
-      }
-    };
-
-    return new Response(
-      JSON.stringify(bootstrap),
-      {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json; charset=utf-8",
-          "Cache-Control": "no-store"
-        }
-      }
-    );
-
-  } catch (error) {
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: {
-          code: "TV_PLAYLIST_PROXY_FAILED",
-          message:
-            error && error.message
-              ? error.message
-              : "TV-Playlist konnte nicht geladen werden."
-        }
-      }),
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json; charset=utf-8",
-          "Cache-Control": "no-store"
-        }
-      }
-    );
-  }
+    meta: {
+      requestedCustomerId: requested,
+      loadedCustomerId: tenant.customerId,
+      fallbackUsed: false,
+      kundenId: tenant.customerId,
+      tvKey: tenant.customerId,
+      language: sprache
+    }
+  });
 }

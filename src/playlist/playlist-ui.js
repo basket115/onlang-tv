@@ -4,8 +4,9 @@
 // Klickverarbeitung, aktive Markierung, Anzeige von Titel/Kategorie/
 // Dauer, Leerzustand, Fehlerzustand. KEINE Playerlogik in dieser Datei.
 //
-// Für HU001 / Darazsak werden die sichtbaren Playlist-Texte ungarisch
-// ausgegeben. Alle anderen Mandanten behalten die deutsche Oberfläche.
+// Die sichtbaren Playlist-Texte folgen der Sprache des Vereins
+// (kunden.sprache über TenantService.getLanguage()): hu = ungarisch,
+// sonst deutsch.
 //
 // Klassisches <script>, KEIN ES-Modul.
 
@@ -15,32 +16,35 @@ window.ONLANG.playlist = window.ONLANG.playlist || {};
 (function (ns) {
   'use strict';
 
-  function isDarazsak() {
-    var switcher = document.getElementById('tv-tenant-switcher');
+  function isHungarian() {
+    var service =
+      window.ONLANG.tenant &&
+      window.ONLANG.tenant.TenantService;
 
-    if (
-      switcher &&
-      String(switcher.value || '').toUpperCase() === 'HU001'
-    ) {
-      return true;
-    }
+    return !!service && service.getLanguage() === 'hu';
+  }
 
-    try {
-      var params = new URLSearchParams(window.location.search);
-      return String(params.get('kunde') || '').toUpperCase() === 'HU001';
-    } catch (e) {
-      return false;
-    }
+  // true = TV gerade nicht erreichbar (statt: Sender hat noch keine Videos).
+  function isUnavailable() {
+    var service =
+      window.ONLANG.tenant &&
+      window.ONLANG.tenant.TenantService;
+
+    return !!service && service.getState() === 'unavailable';
   }
 
   function getTexts() {
-    if (isDarazsak()) {
+    if (isHungarian()) {
       return {
         title: 'Műsor',
         subtitle: 'Automatikus váltás hirdetéssel',
+        subtitleNoAds: 'Automatikus váltás',
+        typeVideo: 'Videó',
+        typeAd: 'Reklám',
         auto: 'AUTO',
         running: 'MOST',
-        empty: 'Nincs lejátszási lista.',
+        empty: 'Még nincsenek videók.',
+        unavailable: 'A TV jelenleg nem érhető el.',
         unknownVideo: 'Ismeretlen videó',
         errorPrefix: 'Hiba ennél: „',
         errorFallback: 'ez a bejegyzés',
@@ -52,9 +56,13 @@ window.ONLANG.playlist = window.ONLANG.playlist || {};
     return {
       title: 'Programm',
       subtitle: 'Automatischer Wechsel mit Werbespot',
+      subtitleNoAds: 'Automatischer Wechsel',
+      typeVideo: 'Video',
+      typeAd: 'Werbespot',
       auto: 'AUTO',
       running: 'LÄUFT',
-      empty: 'Keine Playlist-Einträge vorhanden.',
+      empty: 'Noch keine Videos.',
+      unavailable: 'TV gerade nicht erreichbar.',
       unknownVideo: 'Unbekanntes Video',
       errorPrefix: 'Fehler bei „',
       errorFallback: 'diesem Eintrag',
@@ -84,6 +92,7 @@ window.ONLANG.playlist = window.ONLANG.playlist || {};
       '</section>';
 
     return {
+      subtitleEl: container.querySelector('.playlist-subtitle'),
       listEl: container.querySelector('.playlist-list'),
       messageEl: container.querySelector('.playlist-message')
     };
@@ -99,13 +108,26 @@ window.ONLANG.playlist = window.ONLANG.playlist || {};
       var currentIndex = controller.getCurrentIndex();
       var status = controller.getStatus();
 
+      // "mit Werbespot" nur, wenn wirklich ein Spot eingeplant ist.
+      if (view.subtitleEl && controller.hasAdvertisement) {
+        view.subtitleEl.textContent =
+          controller.hasAdvertisement() ? t.subtitle : t.subtitleNoAds;
+      }
+
+      // Läuft gerade ein Werbespot, ist kein Video "dran".
+      var adRunning =
+        !!controller.getCurrentMode &&
+        !!controller.MODES &&
+        controller.getCurrentMode() === controller.MODES.ADVERTISEMENT;
+
       view.listEl.innerHTML = '';
       view.messageEl.hidden = true;
       view.messageEl.textContent = '';
 
       if (status === controller.STATUSES.EMPTY) {
         view.messageEl.hidden = false;
-        view.messageEl.textContent = t.empty;
+        view.messageEl.textContent =
+          isUnavailable() ? t.unavailable : t.empty;
         return;
       }
 
@@ -114,7 +136,7 @@ window.ONLANG.playlist = window.ONLANG.playlist || {};
         li.className = 'playlist-item';
         li.tabIndex = 0;
 
-        var isCurrent = index === currentIndex;
+        var isCurrent = index === currentIndex && !adRunning;
 
         if (isCurrent) {
           li.classList.add('active');
@@ -132,15 +154,28 @@ window.ONLANG.playlist = window.ONLANG.playlist || {};
             ? item.title
             : t.unknownVideo;
 
-        var category =
+        // Typ aus tv_inhalte in der Sprache des Vereins; andere
+        // Kategorien (Demo-Sender) bleiben, wie sie sind.
+        var typeLabels = {
+          VIDEO: t.typeVideo,
+          WERBESPOT: t.typeAd
+        };
+
+        var rawCategory =
           item && item.category
             ? item.category
-            : '—';
+            : '';
 
+        var category =
+          typeLabels[rawCategory] || rawCategory;
+
+        // Dauer nur, wenn sie etwas anderes sagt als der Typ.
         var durationLabel =
-          item && item.durationLabel
+          item &&
+          item.durationLabel &&
+          item.durationLabel !== rawCategory
             ? item.durationLabel
-            : '--:--';
+            : '';
 
         li.innerHTML =
           '<span class="playlist-item-number"></span>' +
@@ -159,7 +194,7 @@ window.ONLANG.playlist = window.ONLANG.playlist || {};
           title;
 
         li.querySelector('.playlist-item-meta').textContent =
-          category + ' · ' + durationLabel;
+          [category, durationLabel].filter(Boolean).join(' · ') || '—';
 
         function activate() {
           controller.select(index);

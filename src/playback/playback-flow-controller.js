@@ -104,7 +104,7 @@ window.ONLANG.playback = window.ONLANG.playback || {};
         currentMode = MODES.CONTENT;
 
         // Nur laden, nicht automatisch starten.
-        player.load({ source: firstItem.src });
+        player.load({ source: firstItem.src, poster: firstItem.poster });
 
         mediaStartPending = false;
         setFlowState(STATES.CONTENT_READY);
@@ -199,7 +199,8 @@ window.ONLANG.playback = window.ONLANG.playback || {};
       );
 
       player.load({
-        source: item.src
+        source: item.src,
+        poster: item.poster
       });
 
       // KEIN player.play() hier.
@@ -420,7 +421,8 @@ window.ONLANG.playback = window.ONLANG.playback || {};
         currentMode = MODES.CONTENT;
 
         player.load({
-          source: item.src
+          source: item.src,
+          poster: item.poster
         });
       }
 
@@ -508,6 +510,22 @@ window.ONLANG.playback = window.ONLANG.playback || {};
         nextItem =
           playlist.getItems()[nextIndex];
 
+        // Ohne eingetragenen Spot folgt direkt das nächste Video. Gibt
+        // es nur ein einziges Video, wird nichts angekündigt.
+        if (!advertising.hasActiveAdvertisement()) {
+          return {
+            nextTag: 'ALS NÄCHSTES',
+            nextTitle:
+              playlist.getItems().length > 1 &&
+              nextItem &&
+              nextItem.title
+                ? nextItem.title
+                : '',
+            afterTag: '',
+            afterTitle: ''
+          };
+        }
+
         return {
           nextTag: 'ALS NÄCHSTES',
           nextTitle:
@@ -560,6 +578,10 @@ window.ONLANG.playback = window.ONLANG.playback || {};
 
       // Playlist-Fassade für playlist-ui.js
       select: selectContent,
+
+      hasAdvertisement: function () {
+        return advertising.hasActiveAdvertisement();
+      },
 
       getItems: function () {
         return playlist.getItems();

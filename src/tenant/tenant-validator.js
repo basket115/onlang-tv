@@ -694,6 +694,13 @@ window.ONLANG.tenant = window.ONLANG.tenant || {};
         subtitle:
           typeof item.subtitle === 'string'
             ? item.subtitle
+            : '',
+
+        // Optionaler Link des Partners (nur https).
+        url:
+          typeof item.url === 'string' &&
+          /^https:\/\/\S+$/i.test(item.url)
+            ? item.url
             : ''
       });
     });

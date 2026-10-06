@@ -11,7 +11,48 @@ window.ONLANG.views = window.ONLANG.views || {};
 (function (ns) {
   'use strict';
 
+  function isHungarian() {
+    var service =
+      window.ONLANG.tenant &&
+      window.ONLANG.tenant.TenantService;
+
+    return !!service && service.getLanguage() === 'hu';
+  }
+
+  // true = neutraler Demo-Sender. Nur dort bleiben die festen Demo-Inhalte.
+  function isDemo() {
+    var service =
+      window.ONLANG.tenant &&
+      window.ONLANG.tenant.TenantService;
+
+    return !!service && service.isDemo();
+  }
+
+  function getTexts() {
+    if (isHungarian()) {
+      return {
+        tvInfo: 'TV információk',
+        footerVersion: 'ONLANG TV – Bemutató verzió 1.0',
+        footerName: 'ONLANG TV',
+        inProgram: 'A műsorban: ',
+        automaticTicker: 'Automatikus műsorszórás',
+        sponsorTicker: 'Szponzorhirdetések a műsorszámok között'
+      };
+    }
+
+    return {
+      tvInfo: 'TV Informationen',
+      footerVersion: 'ONLANG TV – Präsentationsversion 1.0',
+      footerName: 'ONLANG TV',
+      inProgram: 'Jetzt im Programm von ',
+      automaticTicker: 'Automatischer Sendebetrieb',
+      sponsorTicker: 'Werbespots zwischen den Beiträgen'
+    };
+  }
+
   function render(container, data) {
+    var t = getTexts();
+
     container.innerHTML =
       '<div class="tv-app tv-app--embed">' +
       '  <header class="tv-header tv-header--compact">' +
@@ -32,7 +73,7 @@ window.ONLANG.views = window.ONLANG.views || {};
       '      </div>' +
       '      <div id="now-playing-container"></div>' +
       '      <div id="player-container"></div>' +
-      '      <div class="tv-info-ticker tv-info-ticker--embed" role="region" aria-label="TV Informationen">' +
+      '      <div class="tv-info-ticker tv-info-ticker--embed" role="region" aria-label="' + t.tvInfo + '">' +
       '        <div class="tv-info-ticker-label"></div>' +
       '        <div class="tv-info-ticker-window">' +
       '          <div class="tv-info-ticker-track">' +
@@ -45,8 +86,8 @@ window.ONLANG.views = window.ONLANG.views || {};
       '    <aside id="playlist-container" class="tv-playlist-col"></aside>' +
       '  </main>' +
       '  <footer class="tv-footer tv-footer--embed">' +
-      '    <strong>ONLANG TV – Präsentationsversion 1.0</strong>' +
-      '    <span>© 2026 ONLANG</span>' +
+      '    <strong>' + (isDemo() ? t.footerVersion : t.footerName) + '</strong>' +
+      '    <span>© ' + new Date().getFullYear() + ' ONLANG</span>' +
       '  </footer>' +
       '</div>';
 
@@ -57,35 +98,69 @@ window.ONLANG.views = window.ONLANG.views || {};
     return ns.ViewHelpers.createModuleViews(container);
   }
 
+  // Meldet der einbettenden Seite die Höhe des Inhalts (postMessage
+  // "onlang-tv-resize"), damit sie ihr Fenster ohne eigenen Rollbalken
+  // anpassen kann. Gemeldet wird bei jeder Größenänderung, auch beim
+  // Kleinerwerden: Inhalt und Fensterbreite (ResizeObserver, resize),
+  // Videowechsel und Programmliste (MutationObserver, loadedmetadata).
   function setupEmbedAutoHeight(container) {
     if (window.parent === window) return;
 
+    var ENTPRELLEN_MS = 80;
     var lastHeight = 0;
-    var sendHeight = function () {
+    var timer = null;
+
+    function sendHeight() {
+      timer = null;
       var app = container.querySelector('.tv-app--embed');
       if (!app) return;
-      var height = Math.ceil(app.getBoundingClientRect().height);
+
+      // Höhe des Inhalts plus der Rand der Seite (body-padding).
+      var body = window.getComputedStyle(document.body);
+      var height = Math.ceil(
+        app.getBoundingClientRect().height +
+        (parseFloat(body.paddingTop) || 0) +
+        (parseFloat(body.paddingBottom) || 0)
+      );
+
       if (!height || height === lastHeight) return;
       lastHeight = height;
       window.parent.postMessage({
         type: 'onlang-tv-resize',
         height: height
       }, '*');
-    };
+    }
+
+    function scheduleHeight() {
+      if (timer) window.clearTimeout(timer);
+      timer = window.setTimeout(sendHeight, ENTPRELLEN_MS);
+    }
 
     sendHeight();
 
-    if (window.ResizeObserver) {
-      var observer = new ResizeObserver(sendHeight);
-      observer.observe(container);
-      observer.observe(document.documentElement);
-    } else {
-      window.addEventListener('load', sendHeight);
-      window.addEventListener('resize', sendHeight);
+    var app = container.querySelector('.tv-app--embed');
+
+    if (window.ResizeObserver && app) {
+      new ResizeObserver(scheduleHeight).observe(app);
     }
 
+    // Videowechsel, "Jetzt läuft" und Programmliste ändern den Inhalt.
+    if (window.MutationObserver && app) {
+      new MutationObserver(scheduleHeight).observe(app, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['hidden', 'class', 'style']
+      });
+    }
+
+    window.addEventListener('load', scheduleHeight);
+    window.addEventListener('resize', scheduleHeight);
+    window.addEventListener('orientationchange', scheduleHeight);
+    container.addEventListener('loadedmetadata', scheduleHeight, true);
+
     if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(sendHeight);
+      document.fonts.ready.then(scheduleHeight);
     }
   }
 
@@ -95,14 +170,19 @@ window.ONLANG.views = window.ONLANG.views || {};
     var tenantName = data.tenant.name || 'ONLANG TV';
     if (label) label.textContent = tenantName;
 
-    var messages = ['Jetzt im Programm von ' + tenantName];
+    var t = getTexts();
+    var messages = [t.inProgram + tenantName];
     (data.videos || []).forEach(function (item) {
       if (item && item.title) messages.push(item.title);
     });
-    (data.categories || []).forEach(function (item) {
-      if (item && item.label) messages.push(item.label);
-    });
-    messages.push('Automatischer Sendebetrieb', 'Werbespots zwischen den Beiträgen');
+    // Feste Texte nur beim neutralen Demo-Sender; bei Vereinen stehen
+    // im Laufband nur Sendername und Titel der Videos.
+    if (isDemo()) {
+      (data.categories || []).forEach(function (item) {
+        if (item && item.label) messages.push(item.label);
+      });
+      messages.push(t.automaticTicker, t.sponsorTicker);
+    }
 
     Array.prototype.forEach.call(groups, function (group) {
       group.innerHTML = '';

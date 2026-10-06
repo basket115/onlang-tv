@@ -638,6 +638,11 @@ body {
   display: none;
 }
 
+/* Mit ?debug=1 (siehe player-ui.js) sind die technischen Zeilen sichtbar. */
+.player.player--debug > .player-row { display: flex; }
+.player.player--debug > .player-rule { display: block; }
+.player.player--debug > .player-row[hidden] { display: none; }
+
 .player {
   padding-bottom: 18px;
 }
@@ -879,6 +884,18 @@ body {
   line-height: 1;
   font-weight: 900;
   letter-spacing: 0.12em;
+}
+
+/* Kein Livestream: neutrales Abzeichen "Sendebetrieb" ohne Rot. */
+.tv-live-badge--idle {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.tv-partners[hidden] { display: none; }
+
+a.tv-partner-card {
+  color: inherit;
+  text-decoration: none;
 }
 
 .tv-live-dot {
