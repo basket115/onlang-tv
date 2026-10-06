@@ -95,9 +95,20 @@ window.ONLANG.views = window.ONLANG.views || {};
     var row = container.querySelector('.tv-partner-row');
     if (!row) return;
     row.innerHTML = '';
+
+    // Ohne Partner bleibt der ganze Bereich weg (keine leere Überschrift).
+    var section = container.querySelector('.tv-partners');
+    if (section) section.hidden = (data.partners || []).length === 0;
+
     (data.partners || []).forEach(function (partner) {
-      var card = document.createElement('div');
+      // Mit Link ist die ganze Karte anklickbar.
+      var card = document.createElement(partner.url ? 'a' : 'div');
       card.className = 'tv-partner-card';
+      if (partner.url) {
+        card.href = partner.url;
+        card.target = '_blank';
+        card.rel = 'noopener';
+      }
       card.innerHTML =
         '<span class="tv-partner-logo"></span>' +
         '<span class="tv-partner-text">' +

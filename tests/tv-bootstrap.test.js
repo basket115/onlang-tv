@@ -70,7 +70,7 @@ await test('bekannter Kunde: Branding aus kunden, Videos und Spots getrennt, bis
   gleich(body.tenant.tagline, '');
   gleich(body.tenant.logoUrl, 'https://bilder.test/logo.png');
   gleich(body.tenant.theme, { accent: '#d71920', background: '#080808', surface: '#151515', text: '#ffffff' });
-  gleich(body.playlist.videos.map((v) => [v.id, v.title, v.src, v.category]), [['a1', 'Spielbericht', 'https://youtu.be/abcdefghijk', 'VIDEO']]);
+  gleich(body.playlist.videos.map((v) => [v.id, v.title, v.src, v.category, v.durationLabel]), [['a1', 'Spielbericht', 'https://youtu.be/abcdefghijk', 'VIDEO', '']]);
   gleich(body.advertising.items.map((v) => [v.id, v.active, v.poster]), [['a2', true, 'https://bilder.test/p.jpg']]);
   gleich(body.settings.advertisingMode, 'startup');
   gleich(body.meta.language, 'de');

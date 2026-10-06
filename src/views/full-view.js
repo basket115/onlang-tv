@@ -24,17 +24,28 @@ window.ONLANG.views = window.ONLANG.views || {};
     return !!service && service.getLanguage() === 'hu';
   }
 
+  // true = neutraler Demo-Sender. Nur dort bleiben die festen Demo-Inhalte.
+  function isDemo() {
+    var service =
+      window.ONLANG.tenant &&
+      window.ONLANG.tenant.TenantService;
+
+    return !!service && service.isDemo();
+  }
+
   function getTexts(data) {
     if (isHungarian()) {
       return {
         broadcastAria: 'Adás állapota',
         live: 'ÉLŐ',
+        onAir: 'Adás',
         automaticOperation: 'Automatikus műsorszórás',
         club: 'Egyesület',
         switchClub: 'Egyesület váltása',
         tvInfo: 'TV információk',
         partners: 'Partnereink',
         footerVersion: 'ONLANG TV – Bemutató verzió 1.0',
+        footerName: 'ONLANG TV',
         footerText: '© 2026 ONLANG · Digitális kommunikációs platform egyesületeknek és szövetségeknek',
         welcomePrefix: 'Üdvözöljük a ',
         welcomeSuffix: ' csatornán – powered by ONLANG',
@@ -49,12 +60,14 @@ window.ONLANG.views = window.ONLANG.views || {};
     return {
       broadcastAria: 'Sendestatus',
       live: 'LIVE',
+      onAir: 'Sendebetrieb',
       automaticOperation: 'Automatischer Sendebetrieb',
       club: 'Verein',
       switchClub: 'Verein wechseln',
       tvInfo: 'TV Informationen',
       partners: 'Unsere Partner',
       footerVersion: 'ONLANG TV – Präsentationsversion 1.0',
+      footerName: 'ONLANG TV',
       footerText: '© 2026 ONLANG · Digitale Kommunikationsplattform für Vereine und Verbände',
       welcomePrefix: 'Willkommen bei ',
       welcomeSuffix: ' – powered by ONLANG',
@@ -75,6 +88,10 @@ window.ONLANG.views = window.ONLANG.views || {};
   function render(container, data, onTenantChange) {
     var t = getTexts(data);
 
+    // "LIVE" mit Punkt nur bei einem echten Livestream (live.enabled).
+    // Sonst steht dort neutral "Sendebetrieb".
+    var isLive = !!(data.live && data.live.enabled);
+
     // Vereinsauswahl entfernt: Der Verein wird ausschließlich über
     // ?kunde= in der URL bestimmt (siehe main.js / TenantService).
     // Es wird KEIN sichtbarer Umschalter mehr im Header gerendert.
@@ -94,9 +111,13 @@ window.ONLANG.views = window.ONLANG.views || {};
       '    <div class="tv-header-actions">' +
       '      <div class="tv-broadcast-panel" aria-label="' + escapeHtml(t.broadcastAria) + '">' +
       '        <div class="tv-broadcast-topline">' +
-      '          <span class="tv-live-badge"><span class="tv-live-dot"></span>' +
-                   escapeHtml(t.live) +
-      '          </span>' +
+      (isLive
+        ? '          <span class="tv-live-badge"><span class="tv-live-dot"></span>' +
+                     escapeHtml(t.live) +
+          '          </span>'
+        : '          <span class="tv-live-badge tv-live-badge--idle">' +
+                     escapeHtml(t.onAir) +
+          '          </span>') +
       '          <span class="tv-broadcast-channel"></span>' +
       '        </div>' +
       '        <div class="tv-broadcast-datetime">' +
@@ -146,7 +167,7 @@ window.ONLANG.views = window.ONLANG.views || {};
       '  </section>' +
 
       '  <footer class="tv-footer">' +
-      '    <strong>' + escapeHtml(t.footerVersion) + '</strong>' +
+      '    <strong>' + escapeHtml(isDemo() ? t.footerVersion : t.footerName) + '</strong>' +
       '    <span>' + escapeHtml(t.footerText) + '</span>' +
       '  </footer>' +
       '</div>';
@@ -202,17 +223,25 @@ window.ONLANG.views = window.ONLANG.views || {};
         data.tenant.name || 'ONLANG TV';
     }
 
+    // Bei Vereinen stehen im Laufband nur Texte aus den echten Daten
+    // (Sendername, Titel der Videos). Die festen Texte gibt es nur beim
+    // neutralen Demo-Sender.
+    var demo = isDemo();
+
     var messages = [
       t.welcomePrefix +
         (data.tenant.name || 'ONLANG TV') +
-        t.welcomeSuffix,
-
-      t.automaticTicker,
-
-      t.sponsorTicker
+        t.welcomeSuffix
     ];
 
-    (data.categories || []).forEach(function (item) {
+    if (demo) {
+      messages.push(
+        t.automaticTicker,
+        t.sponsorTicker
+      );
+    }
+
+    (demo ? data.categories || [] : []).forEach(function (item) {
       var categoryText =
         item.label || t.topicFallback;
 
@@ -231,7 +260,9 @@ window.ONLANG.views = window.ONLANG.views || {};
       }
     });
 
-    messages.push(t.future);
+    if (demo) {
+      messages.push(t.future);
+    }
 
     Array.prototype.forEach.call(
       groups,

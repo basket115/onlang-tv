@@ -45,6 +45,19 @@ window.ONLANG.tenantRegistry =
   var currentLanguage = 'de';
   var currentState = 'ok';
 
+  // true = neutraler Demo-Sender (lokale Demo-Daten). Nur dort dürfen
+  // feste Demo-Inhalte erscheinen, nie unter dem Namen eines Vereins.
+  var currentDemo = false;
+
+  // Bei Vereinen steht unter "Unsere Partner" nur ONLANG.
+  var ONLANG_PARTNER = {
+    id: 'onlang',
+    name: 'ONLANG',
+    logoUrl: 'public/assets/logos/onlang-logo.png',
+    subtitle: '',
+    url: 'https://www.onlang.de'
+  };
+
 
   /**
    * Liest die Kunden-ID aus der URL.
@@ -277,6 +290,8 @@ window.ONLANG.tenantRegistry =
             ? 'ok'
             : 'empty';
 
+        currentDemo = false;
+
         var apiWarnings =
           Array.isArray(
             bootstrapResult.warnings
@@ -404,7 +419,7 @@ window.ONLANG.tenantRegistry =
           : [],
 
       categories: [],
-      partners: []
+      partners: [ONLANG_PARTNER]
     };
   }
 
@@ -473,6 +488,7 @@ window.ONLANG.tenantRegistry =
         : 'de';
 
     currentState = 'ok';
+    currentDemo = true;
 
     return {
       requestedCustomerId:
@@ -549,6 +565,7 @@ window.ONLANG.tenantRegistry =
         : 'de';
 
     currentState = 'unavailable';
+    currentDemo = false;
 
     return {
       requestedCustomerId:
@@ -897,6 +914,11 @@ window.ONLANG.tenantRegistry =
     getState:
       function () {
         return currentState;
+      },
+
+    isDemo:
+      function () {
+        return currentDemo;
       },
 
     applyTenantTheme:

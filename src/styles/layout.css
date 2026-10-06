@@ -881,6 +881,18 @@ body {
   letter-spacing: 0.12em;
 }
 
+/* Kein Livestream: neutrales Abzeichen "Sendebetrieb" ohne Rot. */
+.tv-live-badge--idle {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.tv-partners[hidden] { display: none; }
+
+a.tv-partner-card {
+  color: inherit;
+  text-decoration: none;
+}
+
 .tv-live-dot {
   width: 7px;
   height: 7px;

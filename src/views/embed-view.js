@@ -19,11 +19,21 @@ window.ONLANG.views = window.ONLANG.views || {};
     return !!service && service.getLanguage() === 'hu';
   }
 
+  // true = neutraler Demo-Sender. Nur dort bleiben die festen Demo-Inhalte.
+  function isDemo() {
+    var service =
+      window.ONLANG.tenant &&
+      window.ONLANG.tenant.TenantService;
+
+    return !!service && service.isDemo();
+  }
+
   function getTexts() {
     if (isHungarian()) {
       return {
         tvInfo: 'TV információk',
         footerVersion: 'ONLANG TV – Bemutató verzió 1.0',
+        footerName: 'ONLANG TV',
         inProgram: 'A műsorban: ',
         automaticTicker: 'Automatikus műsorszórás',
         sponsorTicker: 'Szponzorhirdetések a műsorszámok között'
@@ -33,6 +43,7 @@ window.ONLANG.views = window.ONLANG.views || {};
     return {
       tvInfo: 'TV Informationen',
       footerVersion: 'ONLANG TV – Präsentationsversion 1.0',
+      footerName: 'ONLANG TV',
       inProgram: 'Jetzt im Programm von ',
       automaticTicker: 'Automatischer Sendebetrieb',
       sponsorTicker: 'Werbespots zwischen den Beiträgen'
@@ -75,7 +86,7 @@ window.ONLANG.views = window.ONLANG.views || {};
       '    <aside id="playlist-container" class="tv-playlist-col"></aside>' +
       '  </main>' +
       '  <footer class="tv-footer tv-footer--embed">' +
-      '    <strong>' + t.footerVersion + '</strong>' +
+      '    <strong>' + (isDemo() ? t.footerVersion : t.footerName) + '</strong>' +
       '    <span>© 2026 ONLANG</span>' +
       '  </footer>' +
       '</div>';
@@ -130,10 +141,14 @@ window.ONLANG.views = window.ONLANG.views || {};
     (data.videos || []).forEach(function (item) {
       if (item && item.title) messages.push(item.title);
     });
-    (data.categories || []).forEach(function (item) {
-      if (item && item.label) messages.push(item.label);
-    });
-    messages.push(t.automaticTicker, t.sponsorTicker);
+    // Feste Texte nur beim neutralen Demo-Sender; bei Vereinen stehen
+    // im Laufband nur Sendername und Titel der Videos.
+    if (isDemo()) {
+      (data.categories || []).forEach(function (item) {
+        if (item && item.label) messages.push(item.label);
+      });
+      messages.push(t.automaticTicker, t.sponsorTicker);
+    }
 
     Array.prototype.forEach.call(groups, function (group) {
       group.innerHTML = '';

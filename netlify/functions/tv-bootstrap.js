@@ -125,7 +125,7 @@ function zuMedium(row, index) {
     title: text(row.titel) || "TV-Inhalt",
     description: "",
     category: typ,
-    durationLabel: typ,
+    durationLabel: "",
     src: text(row.video_url),
     poster: ADRESS_MUSTER.test(poster) ? poster : "",
     badge: null,

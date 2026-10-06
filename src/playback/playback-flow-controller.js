@@ -508,6 +508,22 @@ window.ONLANG.playback = window.ONLANG.playback || {};
         nextItem =
           playlist.getItems()[nextIndex];
 
+        // Ohne eingetragenen Spot folgt direkt das nächste Video. Gibt
+        // es nur ein einziges Video, wird nichts angekündigt.
+        if (!advertising.hasActiveAdvertisement()) {
+          return {
+            nextTag: 'ALS NÄCHSTES',
+            nextTitle:
+              playlist.getItems().length > 1 &&
+              nextItem &&
+              nextItem.title
+                ? nextItem.title
+                : '',
+            afterTag: '',
+            afterTitle: ''
+          };
+        }
+
         return {
           nextTag: 'ALS NÄCHSTES',
           nextTitle:
@@ -560,6 +576,10 @@ window.ONLANG.playback = window.ONLANG.playback || {};
 
       // Playlist-Fassade für playlist-ui.js
       select: selectContent,
+
+      hasAdvertisement: function () {
+        return advertising.hasActiveAdvertisement();
+      },
 
       getItems: function () {
         return playlist.getItems();

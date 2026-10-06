@@ -38,6 +38,9 @@ window.ONLANG.playlist = window.ONLANG.playlist || {};
       return {
         title: 'Műsor',
         subtitle: 'Automatikus váltás hirdetéssel',
+        subtitleNoAds: 'Automatikus váltás',
+        typeVideo: 'Videó',
+        typeAd: 'Reklám',
         auto: 'AUTO',
         running: 'MOST',
         empty: 'Még nincsenek videók.',
@@ -53,6 +56,9 @@ window.ONLANG.playlist = window.ONLANG.playlist || {};
     return {
       title: 'Programm',
       subtitle: 'Automatischer Wechsel mit Werbespot',
+      subtitleNoAds: 'Automatischer Wechsel',
+      typeVideo: 'Video',
+      typeAd: 'Werbespot',
       auto: 'AUTO',
       running: 'LÄUFT',
       empty: 'Noch keine Videos.',
@@ -86,6 +92,7 @@ window.ONLANG.playlist = window.ONLANG.playlist || {};
       '</section>';
 
     return {
+      subtitleEl: container.querySelector('.playlist-subtitle'),
       listEl: container.querySelector('.playlist-list'),
       messageEl: container.querySelector('.playlist-message')
     };
@@ -100,6 +107,12 @@ window.ONLANG.playlist = window.ONLANG.playlist || {};
       var items = controller.getItems();
       var currentIndex = controller.getCurrentIndex();
       var status = controller.getStatus();
+
+      // "mit Werbespot" nur, wenn wirklich ein Spot eingeplant ist.
+      if (view.subtitleEl && controller.hasAdvertisement) {
+        view.subtitleEl.textContent =
+          controller.hasAdvertisement() ? t.subtitle : t.subtitleNoAds;
+      }
 
       view.listEl.innerHTML = '';
       view.messageEl.hidden = true;
@@ -135,15 +148,28 @@ window.ONLANG.playlist = window.ONLANG.playlist || {};
             ? item.title
             : t.unknownVideo;
 
-        var category =
+        // Typ aus tv_inhalte in der Sprache des Vereins; andere
+        // Kategorien (Demo-Sender) bleiben, wie sie sind.
+        var typeLabels = {
+          VIDEO: t.typeVideo,
+          WERBESPOT: t.typeAd
+        };
+
+        var rawCategory =
           item && item.category
             ? item.category
-            : '—';
+            : '';
 
+        var category =
+          typeLabels[rawCategory] || rawCategory;
+
+        // Dauer nur, wenn sie etwas anderes sagt als der Typ.
         var durationLabel =
-          item && item.durationLabel
+          item &&
+          item.durationLabel &&
+          item.durationLabel !== rawCategory
             ? item.durationLabel
-            : '--:--';
+            : '';
 
         li.innerHTML =
           '<span class="playlist-item-number"></span>' +
@@ -162,7 +188,7 @@ window.ONLANG.playlist = window.ONLANG.playlist || {};
           title;
 
         li.querySelector('.playlist-item-meta').textContent =
-          category + ' · ' + durationLabel;
+          [category, durationLabel].filter(Boolean).join(' · ') || '—';
 
         function activate() {
           controller.select(index);

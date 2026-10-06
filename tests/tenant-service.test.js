@@ -72,7 +72,9 @@ await test('bekannter Kunde mit Video: Daten des Kunden, Zustand ok, Sprache de'
   naechsteAntwort = bootstrap([{ id: 'a', title: 'Spielbericht', src: 'https://youtu.be/abcdefghijk', category: 'VIDEO', durationLabel: 'VIDEO' }], 'de');
   const result = await service.loadTenantData('V002');
   gleich([result.data.tenant.name, result.data.videos.length, result.dataSource], ['Scorpions TV', 1, 'bootstrap-api']);
-  gleich([service.getState(), service.getLanguage()], ['ok', 'de']);
+  gleich([service.getState(), service.getLanguage(), service.isDemo()], ['ok', 'de', false]);
+  gleich(result.data.partners.map((p) => [p.name, p.url, p.logoUrl]), [['ONLANG', 'https://www.onlang.de', 'public/assets/logos/onlang-logo.png']], 'bei Vereinen nur ONLANG als Partner');
+  gleich(result.data.categories, []);
 });
 
 await test('bekannter Kunde ohne Videos: sein Sender, keine Demo-Videos, Zustand empty, Sprache hu', async () => {
@@ -86,7 +88,7 @@ await test('unbekannter Kunde: neutraler Demo-Sender DEFAULT, auch wenn es lokal
   naechsteAntwort = { status: 200, body: { success: false, error: { code: 'CUSTOMER_UNKNOWN', message: 'Kunde unbekannt.' } } };
   const result = await service.loadTenantData('HU001');
   gleich([result.loadedCustomerId, result.data.tenant.name, result.data.videos.length > 0], ['DEFAULT', 'ONLANG TV', true]);
-  gleich([service.getState(), service.getLanguage()], ['ok', 'de']);
+  gleich([service.getState(), service.getLanguage(), service.isDemo()], ['ok', 'de', true]);
 });
 
 await test('TV nicht erreichbar (HTTP 503, Netzfehler, unbekannter Fehlercode): Hinweis-Zustand, keine Demo-Videos', async () => {
@@ -99,7 +101,8 @@ await test('TV nicht erreichbar (HTTP 503, Netzfehler, unbekannter Fehlercode): 
     naechsteAntwort = fall;
     const result = await service.loadTenantData('HU001');
     gleich([result.data.tenant.name, result.data.videos, result.data.advertisements, result.dataSource], ['ONLANG TV', [], [], 'unavailable']);
-    gleich([service.getState(), service.getLanguage()], ['unavailable', 'de']);
+    gleich([service.getState(), service.getLanguage(), service.isDemo()], ['unavailable', 'de', false]);
+    gleich(result.data.partners, []);
   }
 });
 
