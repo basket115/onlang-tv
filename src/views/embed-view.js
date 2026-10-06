@@ -11,7 +11,37 @@ window.ONLANG.views = window.ONLANG.views || {};
 (function (ns) {
   'use strict';
 
+  function isHungarian() {
+    var service =
+      window.ONLANG.tenant &&
+      window.ONLANG.tenant.TenantService;
+
+    return !!service && service.getLanguage() === 'hu';
+  }
+
+  function getTexts() {
+    if (isHungarian()) {
+      return {
+        tvInfo: 'TV információk',
+        footerVersion: 'ONLANG TV – Bemutató verzió 1.0',
+        inProgram: 'A műsorban: ',
+        automaticTicker: 'Automatikus műsorszórás',
+        sponsorTicker: 'Szponzorhirdetések a műsorszámok között'
+      };
+    }
+
+    return {
+      tvInfo: 'TV Informationen',
+      footerVersion: 'ONLANG TV – Präsentationsversion 1.0',
+      inProgram: 'Jetzt im Programm von ',
+      automaticTicker: 'Automatischer Sendebetrieb',
+      sponsorTicker: 'Werbespots zwischen den Beiträgen'
+    };
+  }
+
   function render(container, data) {
+    var t = getTexts();
+
     container.innerHTML =
       '<div class="tv-app tv-app--embed">' +
       '  <header class="tv-header tv-header--compact">' +
@@ -32,7 +62,7 @@ window.ONLANG.views = window.ONLANG.views || {};
       '      </div>' +
       '      <div id="now-playing-container"></div>' +
       '      <div id="player-container"></div>' +
-      '      <div class="tv-info-ticker tv-info-ticker--embed" role="region" aria-label="TV Informationen">' +
+      '      <div class="tv-info-ticker tv-info-ticker--embed" role="region" aria-label="' + t.tvInfo + '">' +
       '        <div class="tv-info-ticker-label"></div>' +
       '        <div class="tv-info-ticker-window">' +
       '          <div class="tv-info-ticker-track">' +
@@ -45,7 +75,7 @@ window.ONLANG.views = window.ONLANG.views || {};
       '    <aside id="playlist-container" class="tv-playlist-col"></aside>' +
       '  </main>' +
       '  <footer class="tv-footer tv-footer--embed">' +
-      '    <strong>ONLANG TV – Präsentationsversion 1.0</strong>' +
+      '    <strong>' + t.footerVersion + '</strong>' +
       '    <span>© 2026 ONLANG</span>' +
       '  </footer>' +
       '</div>';
@@ -95,14 +125,15 @@ window.ONLANG.views = window.ONLANG.views || {};
     var tenantName = data.tenant.name || 'ONLANG TV';
     if (label) label.textContent = tenantName;
 
-    var messages = ['Jetzt im Programm von ' + tenantName];
+    var t = getTexts();
+    var messages = [t.inProgram + tenantName];
     (data.videos || []).forEach(function (item) {
       if (item && item.title) messages.push(item.title);
     });
     (data.categories || []).forEach(function (item) {
       if (item && item.label) messages.push(item.label);
     });
-    messages.push('Automatischer Sendebetrieb', 'Werbespots zwischen den Beiträgen');
+    messages.push(t.automaticTicker, t.sponsorTicker);
 
     Array.prototype.forEach.call(groups, function (group) {
       group.innerHTML = '';

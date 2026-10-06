@@ -16,16 +16,16 @@ window.ONLANG.views = window.ONLANG.views || {};
 (function (ns) {
   'use strict';
 
-  function isDarazsak(data) {
-    return !!(
-      data &&
-      data.tenant &&
-      String(data.tenant.customerId || '').toUpperCase() === 'HU001'
-    );
+  function isHungarian() {
+    var service =
+      window.ONLANG.tenant &&
+      window.ONLANG.tenant.TenantService;
+
+    return !!service && service.getLanguage() === 'hu';
   }
 
   function getTexts(data) {
-    if (isDarazsak(data)) {
+    if (isHungarian()) {
       return {
         broadcastAria: 'Adás állapota',
         live: 'ÉLŐ',
@@ -74,10 +74,7 @@ window.ONLANG.views = window.ONLANG.views || {};
    */
   function render(container, data, onTenantChange) {
     var t = getTexts(data);
-    var darazsak = isDarazsak(data);
 
-    // Bei Darazsak wird bewusst KEIN Tenant-/Kanal-Umschalter angezeigt.
-    // Der Besucher der Vereinswebsite bleibt ausschließlich in Darazsak TV.
     // Vereinsauswahl entfernt: Der Verein wird ausschließlich über
     // ?kunde= in der URL bestimmt (siehe main.js / TenantService).
     // Es wird KEIN sichtbarer Umschalter mehr im Header gerendert.
@@ -156,19 +153,6 @@ window.ONLANG.views = window.ONLANG.views || {};
 
     ns.ViewHelpers.applyHeader(container, data);
 
-    // Darazsak: Logo etwas präsenter darstellen.
-    if (darazsak) {
-      var logoEl = container.querySelector('.tv-logo');
-
-      if (logoEl) {
-        logoEl.style.width = '58px';
-        logoEl.style.height = '58px';
-        logoEl.style.minWidth = '58px';
-        logoEl.style.backgroundSize = 'contain';
-        logoEl.style.backgroundRepeat = 'no-repeat';
-        logoEl.style.backgroundPosition = 'center';
-      }
-    }
 
     applyBroadcastBranding(container, data);
     renderTicker(container, data);
@@ -290,7 +274,7 @@ window.ONLANG.views = window.ONLANG.views || {};
       return;
     }
 
-    var hu = isDarazsak(data);
+    var hu = isHungarian();
 
     function updateClock() {
       var now = new Date();

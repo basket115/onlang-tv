@@ -4,8 +4,9 @@
 // Klickverarbeitung, aktive Markierung, Anzeige von Titel/Kategorie/
 // Dauer, Leerzustand, Fehlerzustand. KEINE Playerlogik in dieser Datei.
 //
-// Für HU001 / Darazsak werden die sichtbaren Playlist-Texte ungarisch
-// ausgegeben. Alle anderen Mandanten behalten die deutsche Oberfläche.
+// Die sichtbaren Playlist-Texte folgen der Sprache des Vereins
+// (kunden.sprache über TenantService.getLanguage()): hu = ungarisch,
+// sonst deutsch.
 //
 // Klassisches <script>, KEIN ES-Modul.
 
@@ -15,32 +16,32 @@ window.ONLANG.playlist = window.ONLANG.playlist || {};
 (function (ns) {
   'use strict';
 
-  function isDarazsak() {
-    var switcher = document.getElementById('tv-tenant-switcher');
+  function isHungarian() {
+    var service =
+      window.ONLANG.tenant &&
+      window.ONLANG.tenant.TenantService;
 
-    if (
-      switcher &&
-      String(switcher.value || '').toUpperCase() === 'HU001'
-    ) {
-      return true;
-    }
+    return !!service && service.getLanguage() === 'hu';
+  }
 
-    try {
-      var params = new URLSearchParams(window.location.search);
-      return String(params.get('kunde') || '').toUpperCase() === 'HU001';
-    } catch (e) {
-      return false;
-    }
+  // true = TV gerade nicht erreichbar (statt: Sender hat noch keine Videos).
+  function isUnavailable() {
+    var service =
+      window.ONLANG.tenant &&
+      window.ONLANG.tenant.TenantService;
+
+    return !!service && service.getState() === 'unavailable';
   }
 
   function getTexts() {
-    if (isDarazsak()) {
+    if (isHungarian()) {
       return {
         title: 'Műsor',
         subtitle: 'Automatikus váltás hirdetéssel',
         auto: 'AUTO',
         running: 'MOST',
-        empty: 'Nincs lejátszási lista.',
+        empty: 'Még nincsenek videók.',
+        unavailable: 'A TV jelenleg nem érhető el.',
         unknownVideo: 'Ismeretlen videó',
         errorPrefix: 'Hiba ennél: „',
         errorFallback: 'ez a bejegyzés',
@@ -54,7 +55,8 @@ window.ONLANG.playlist = window.ONLANG.playlist || {};
       subtitle: 'Automatischer Wechsel mit Werbespot',
       auto: 'AUTO',
       running: 'LÄUFT',
-      empty: 'Keine Playlist-Einträge vorhanden.',
+      empty: 'Noch keine Videos.',
+      unavailable: 'TV gerade nicht erreichbar.',
       unknownVideo: 'Unbekanntes Video',
       errorPrefix: 'Fehler bei „',
       errorFallback: 'diesem Eintrag',
@@ -105,7 +107,8 @@ window.ONLANG.playlist = window.ONLANG.playlist || {};
 
       if (status === controller.STATUSES.EMPTY) {
         view.messageEl.hidden = false;
-        view.messageEl.textContent = t.empty;
+        view.messageEl.textContent =
+          isUnavailable() ? t.unavailable : t.empty;
         return;
       }
 

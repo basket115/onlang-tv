@@ -3,6 +3,9 @@ window.ONLANG = window.ONLANG || {};
 window.ONLANG.tenantRegistry = window.ONLANG.tenantRegistry || {};
 
 window.ONLANG.tenantRegistry['HU001'] = {
+  // Sprache der Oberfläche (siehe TenantService.getLanguage()).
+  language: 'hu',
+
   tenant: {
     customerId: 'HU001',
     name: 'Darazsak TV',

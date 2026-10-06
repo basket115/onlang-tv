@@ -5,7 +5,9 @@
 // - Bootstrap-Daten über die Netlify Function laden
 // - Bootstrap-Antwort in das bestehende ONLANG-TV-Datenformat umwandeln
 // - Daten über TenantValidator validieren
-// - bei API-Fehlern auf lokale Demo-Daten zurückfallen
+// - unbekannter Kunde: neutraler Demo-Sender (DEFAULT)
+// - TV nicht erreichbar: neutraler Hinweis, KEINE Demo-Videos
+// - Sprache (de/hu) und Zustand des geladenen Senders bereitstellen
 // - Theme des geladenen Mandanten anwenden
 //
 // WICHTIG:
@@ -33,6 +35,16 @@ window.ONLANG.tenantRegistry =
   var BOOTSTRAP_API_URL =
     '/.netlify/functions/tv-bootstrap';
 
+  // Die Function meldet damit: Kunde fehlt oder ist unbekannt.
+  var CUSTOMER_UNKNOWN =
+    'CUSTOMER_UNKNOWN';
+
+  // Sprache der Oberfläche ('de' | 'hu') und Zustand des Senders:
+  // 'ok' = Videos vorhanden, 'empty' = noch keine Videos,
+  // 'unavailable' = TV gerade nicht erreichbar.
+  var currentLanguage = 'de';
+  var currentState = 'ok';
+
 
   /**
    * Liest die Kunden-ID aus der URL.
@@ -40,6 +52,8 @@ window.ONLANG.tenantRegistry =
    * Unterstützt:
    * ?kunde=V006
    * ?tenant=V006
+   *
+   * Die Kunden-ID gilt immer in Großbuchstaben (?kunde=v006 = V006).
    *
    * @param {Location} [location]
    * @returns {string}
@@ -60,7 +74,7 @@ window.ONLANG.tenantRegistry =
       kunde &&
       kunde.trim() !== ''
     ) {
-      return kunde.trim();
+      return kunde.trim().toUpperCase();
     }
 
     var tenantAlias =
@@ -70,7 +84,7 @@ window.ONLANG.tenantRegistry =
       tenantAlias &&
       tenantAlias.trim() !== ''
     ) {
-      return tenantAlias.trim();
+      return tenantAlias.trim().toUpperCase();
     }
 
     return DEFAULT_CUSTOMER_ID;
@@ -100,7 +114,9 @@ window.ONLANG.tenantRegistry =
    * 1. Bootstrap API versuchen
    * 2. Antwort adaptieren
    * 3. Daten validieren
-   * 4. Bei Fehler lokale Registry verwenden
+   * 4. Unbekannter Kunde: neutraler Demo-Sender (DEFAULT)
+   * 5. Jeder andere Fehler: Hinweis "TV gerade nicht erreichbar",
+   *    keine Demo-Videos
    *
    * @param {string} requestedCustomerId
    * @returns {Promise<object>}
@@ -141,12 +157,26 @@ window.ONLANG.tenantRegistry =
           ? error.message
           : String(error);
 
+      if (
+        error &&
+        error.code === CUSTOMER_UNKNOWN
+      ) {
+        console.info(
+          '[ONLANG TV] Kunde unbekannt — neutraler Demo-Sender wird verwendet.'
+        );
+
+        return loadFromLocalRegistry(
+          DEFAULT_CUSTOMER_ID,
+          message
+        );
+      }
+
       console.warn(
-        '[ONLANG TV] Bootstrap API nicht verfügbar — lokaler Fallback wird verwendet.',
+        '[ONLANG TV] Bootstrap API nicht verfügbar — es werden keine Demo-Videos gezeigt.',
         error
       );
 
-      return loadFromLocalRegistry(
+      return buildUnavailableResult(
         requestedId,
         'Bootstrap API konnte nicht geladen werden: ' +
           message
@@ -208,9 +238,17 @@ window.ONLANG.tenantRegistry =
               bootstrapResult
             );
 
-          throw new Error(
-            apiMessage
-          );
+          var apiError =
+            new Error(
+              apiMessage
+            );
+
+          apiError.code =
+            getBootstrapErrorCode(
+              bootstrapResult
+            );
+
+          throw apiError;
         }
 
         var raw =
@@ -223,6 +261,21 @@ window.ONLANG.tenantRegistry =
             .validateTenantData(
               raw
             );
+
+        currentLanguage =
+          isPlainObject(
+            bootstrapResult.meta
+          ) &&
+          bootstrapResult
+            .meta
+            .language === 'hu'
+            ? 'hu'
+            : 'de';
+
+        currentState =
+          validated.data.videos.length > 0
+            ? 'ok'
+            : 'empty';
 
         var apiWarnings =
           Array.isArray(
@@ -413,6 +466,14 @@ window.ONLANG.tenantRegistry =
           raw
         );
 
+    currentLanguage =
+      raw &&
+      raw.language === 'hu'
+        ? 'hu'
+        : 'de';
+
+    currentState = 'ok';
+
     return {
       requestedCustomerId:
         requestedId,
@@ -435,6 +496,81 @@ window.ONLANG.tenantRegistry =
 
       dataSource:
         'local-registry'
+    };
+  }
+
+
+  /**
+   * TV gerade nicht erreichbar: neutraler Sender ohne Videos und ohne
+   * Werbung. Die Playlist zeigt dazu den passenden Hinweis (siehe
+   * playlist-ui.js). Die Sprache des Vereins ist hier nicht bekannt,
+   * deshalb entscheidet die Sprache des Browsers.
+   *
+   * @param {string} requestedId
+   * @param {string} loadError
+   * @returns {object}
+   */
+  function buildUnavailableResult(
+    requestedId,
+    loadError
+  ) {
+    var validated =
+      ns.TenantValidator
+        .validateTenantData({
+          tenant: {
+            customerId:
+              DEFAULT_CUSTOMER_ID,
+            name:
+              'ONLANG TV',
+            tagline: '',
+            logoUrl: '',
+            logoText: 'TV',
+            theme: {},
+            presenter: {}
+          },
+          settings: {},
+          live: {},
+          videos: [],
+          categories: [],
+          partners: [],
+          advertisements: []
+        });
+
+    var browserLanguage =
+      String(
+        (window.navigator &&
+          window.navigator.language) ||
+          ''
+      ).toLowerCase();
+
+    currentLanguage =
+      browserLanguage.indexOf('hu') === 0
+        ? 'hu'
+        : 'de';
+
+    currentState = 'unavailable';
+
+    return {
+      requestedCustomerId:
+        requestedId,
+
+      loadedCustomerId:
+        DEFAULT_CUSTOMER_ID,
+
+      usedFallback:
+        false,
+
+      data:
+        validated.data,
+
+      warnings:
+        [],
+
+      loadError:
+        loadError,
+
+      dataSource:
+        'unavailable'
     };
   }
 
@@ -588,6 +724,28 @@ window.ONLANG.tenantRegistry =
 
 
   /**
+   * Liest den Fehlercode einer Fehlerantwort ('' = keiner).
+   */
+  function getBootstrapErrorCode(
+    bootstrapResult
+  ) {
+    return (
+      bootstrapResult &&
+      isPlainObject(
+        bootstrapResult.error
+      ) &&
+      typeof bootstrapResult
+        .error
+        .code === 'string'
+        ? bootstrapResult
+          .error
+          .code
+        : ''
+    );
+  }
+
+
+  /**
    * Baut eine verständliche Fehlermeldung aus einer Fehlerantwort.
    */
   function getBootstrapErrorMessage(
@@ -730,6 +888,16 @@ window.ONLANG.tenantRegistry =
 
     loadTenantData:
       loadTenantData,
+
+    getLanguage:
+      function () {
+        return currentLanguage;
+      },
+
+    getState:
+      function () {
+        return currentState;
+      },
 
     applyTenantTheme:
       applyTenantTheme

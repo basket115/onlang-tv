@@ -2,8 +2,9 @@
 //
 // Playeransicht von ONLANG TV.
 //
-// Für HU001 / Darazsak werden die sichtbaren Player-Texte ungarisch
-// ausgegeben. Alle anderen Mandanten behalten die deutsche Oberfläche.
+// Die sichtbaren Player-Texte folgen der Sprache des Vereins
+// (kunden.sprache über TenantService.getLanguage()): hu = ungarisch,
+// sonst deutsch.
 //
 // Klassisches <script>, KEIN ES-Modul.
 
@@ -24,32 +25,16 @@ window.ONLANG.player = window.ONLANG.player || {};
       (s < 10 ? '0' : '') + s;
   }
 
-  /**
-   * Erkennt, ob aktuell Darazsak / HU001 aktiv ist.
-   *
-   * Die Mandantenauswahl wurde von FullView bereits aufgebaut,
-   * bevor die Player-Module erzeugt werden.
-   */
-  function isDarazsak() {
-    var switcher = document.getElementById('tv-tenant-switcher');
+  function isHungarian() {
+    var service =
+      window.ONLANG.tenant &&
+      window.ONLANG.tenant.TenantService;
 
-    if (switcher &&
-        String(switcher.value || '').toUpperCase() === 'HU001') {
-      return true;
-    }
-
-    var params;
-
-    try {
-      params = new URLSearchParams(window.location.search);
-      return String(params.get('kunde') || '').toUpperCase() === 'HU001';
-    } catch (e) {
-      return false;
-    }
+    return !!service && service.getLanguage() === 'hu';
   }
 
   function getTexts() {
-    if (isDarazsak()) {
+    if (isHungarian()) {
       return {
         status: 'Állapot:',
         time: 'Idő:',

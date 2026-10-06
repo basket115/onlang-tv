@@ -3,8 +3,8 @@
 // Zeigt AUSSCHLIESSLICH die Kennzeichnung
 // "WERBUNG"/"JETZT LÄUFT" samt Titel an.
 //
-// Für HU001 / Darazsak werden die sichtbaren Texte ungarisch
-// ausgegeben. Alle anderen Mandanten bleiben deutsch.
+// Die sichtbaren Texte folgen der Sprache des Vereins (kunden.sprache
+// über TenantService.getLanguage()): hu = ungarisch, sonst deutsch.
 //
 // Klassisches <script>, KEIN ES-Modul.
 
@@ -14,26 +14,16 @@ window.ONLANG.advertising = window.ONLANG.advertising || {};
 (function (ns) {
   'use strict';
 
-  function isDarazsak() {
-    var switcher = document.getElementById('tv-tenant-switcher');
+  function isHungarian() {
+    var service =
+      window.ONLANG.tenant &&
+      window.ONLANG.tenant.TenantService;
 
-    if (
-      switcher &&
-      String(switcher.value || '').toUpperCase() === 'HU001'
-    ) {
-      return true;
-    }
-
-    try {
-      var params = new URLSearchParams(window.location.search);
-      return String(params.get('kunde') || '').toUpperCase() === 'HU001';
-    } catch (e) {
-      return false;
-    }
+    return !!service && service.getLanguage() === 'hu';
   }
 
   function getTexts() {
-    if (isDarazsak()) {
+    if (isHungarian()) {
       return {
         advertisement: 'HIRDETÉS',
         nowPlaying: 'MOST MŰSORON',
@@ -122,8 +112,8 @@ window.ONLANG.advertising = window.ONLANG.advertising || {};
       );
 
       // Der Controller liefert intern weiterhin die deutschen Tags.
-      // Nur die sichtbare Darstellung wird für HU001 übersetzt.
-      if (isDarazsak()) {
+      // Nur die sichtbare Darstellung wird ins Ungarische übersetzt.
+      if (isHungarian()) {
         view.tagEl.textContent =
           info.tag === 'WERBUNG'
             ? t.advertisement
@@ -148,7 +138,7 @@ window.ONLANG.advertising = window.ONLANG.advertising || {};
       view.upcomingEl.hidden = false;
 
       view.upcomingTagEl.textContent =
-        isDarazsak()
+        isHungarian()
           ? t.next
           : (upcoming.nextTag || t.next);
 
@@ -160,7 +150,7 @@ window.ONLANG.advertising = window.ONLANG.advertising || {};
         view.afterEl.hidden = false;
 
         view.afterTagEl.textContent =
-          isDarazsak()
+          isHungarian()
             ? t.after
             : (upcoming.afterTag || t.after);
 
