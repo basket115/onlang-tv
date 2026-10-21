@@ -18,6 +18,12 @@
 //   - { source: '...' }
 //   - { src: '...' }
 //
+// Datenschutz (2-Klick): YouTube wird erst geladen, wenn der Besucher auf
+// "Video laden" klickt (oder früher "YouTube-Videos immer laden" angehakt
+// hat, gespeichert nur im Browser). Bis dahin wird keine Verbindung zu
+// YouTube aufgebaut. Danach läuft der Player über youtube-nocookie.com.
+// MP4-Videos sind davon nicht betroffen.
+//
 // Für den automatischen TV-Betrieb wird das Medium vor play() stumm
 // geschaltet. Dadurch erlaubt Chrome auch automatische Medienwechsel
 // Spot -> Video -> Spot. Nach dem ersten Klick wird der Ton aktiviert.
@@ -35,6 +41,49 @@ window.ONLANG.player = window.ONLANG.player || {};
   // ============================================================
 
   var ytApiPromise = null;
+
+  // ---- Zustimmung zu YouTube (2-Klick) ----
+  var YT_IMMER_SCHLUESSEL = 'onlang_youtube_immer';
+  var ytErlaubtSitzung = false;
+
+  function ytErlaubt() {
+    if (ytErlaubtSitzung) return true;
+    try {
+      return window.localStorage.getItem(YT_IMMER_SCHLUESSEL) === '1';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function ytSprache() {
+    var service = window.ONLANG.tenant && window.ONLANG.tenant.TenantService;
+    var lang = service && typeof service.getLanguage === 'function' ? service.getLanguage() : 'de';
+    return lang === 'hu' || lang === 'en' ? lang : 'de';
+  }
+
+  var YT_TEXTE = {
+    de: {
+      titel: 'Video von YouTube',
+      text: 'Dieses Video wird von YouTube bereitgestellt. Es wird erst nach Ihrem Klick geladen; dabei werden Daten an YouTube (Google) übertragen.',
+      knopf: 'Video laden',
+      immer: 'YouTube-Videos immer laden',
+      datenschutz: 'Datenschutz'
+    },
+    hu: {
+      titel: 'Videó a YouTube-ról',
+      text: 'Ezt a videót a YouTube szolgáltatja. Csak az Ön kattintása után töltődik be; ekkor adatok kerülnek a YouTube-hoz (Google).',
+      knopf: 'Videó betöltése',
+      immer: 'YouTube-videók mindig töltődjenek be',
+      datenschutz: 'Adatvédelem'
+    },
+    en: {
+      titel: 'Video from YouTube',
+      text: 'This video is provided by YouTube. It is only loaded after you click; data is then transferred to YouTube (Google).',
+      knopf: 'Load video',
+      immer: 'Always load YouTube videos',
+      datenschutz: 'Privacy policy'
+    }
+  };
 
   // Lädt die YouTube IFrame Player API genau einmal.
   function loadYouTubeApi() {
@@ -254,7 +303,7 @@ window.ONLANG.player = window.ONLANG.player || {};
       ytContainer.className = 'player-youtube';
       ytContainer.setAttribute('aria-hidden', 'true');
       ytContainer.style.cssText =
-        'display:none;width:100%;aspect-ratio:16/9;max-height:100%;background:#000;';
+        'display:none;position:relative;width:100%;aspect-ratio:16/9;max-height:100%;background:#000;';
 
       ytMount = document.createElement('div');
       ytMount.style.cssText = 'width:100%;height:100%;';
@@ -317,6 +366,58 @@ window.ONLANG.player = window.ONLANG.player || {};
       }
     }
 
+    // Hinweis "Video von YouTube" mit Knopf, solange keine Zustimmung da ist.
+    var ytHinweis = null;
+
+    function zeigeYtHinweis(weiter) {
+      var t = YT_TEXTE[ytSprache()];
+      if (!ytHinweis) {
+        ytHinweis = document.createElement('div');
+        ytHinweis.className = 'player-yt-zustimmung';
+        ytHinweis.style.cssText =
+          'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;' +
+          'gap:12px;padding:20px;text-align:center;background:#0b1e2f;color:#f4f1ea;font:15px/1.5 system-ui,sans-serif;z-index:5;';
+        ytContainer.appendChild(ytHinweis);
+      }
+      ytHinweis.innerHTML = '';
+      var titel = document.createElement('div');
+      titel.style.cssText = 'font-weight:700;font-size:18px;';
+      titel.textContent = '▶ ' + t.titel;
+      var text = document.createElement('div');
+      text.style.cssText = 'max-width:520px;opacity:.85;';
+      text.textContent = t.text;
+      var knopf = document.createElement('button');
+      knopf.type = 'button';
+      knopf.textContent = t.knopf;
+      knopf.style.cssText = 'background:#F47A1F;color:#fff;border:none;border-radius:100px;padding:10px 26px;font:700 15px system-ui,sans-serif;cursor:pointer;';
+      var zeile = document.createElement('label');
+      zeile.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:13px;opacity:.85;cursor:pointer;';
+      var haken = document.createElement('input');
+      haken.type = 'checkbox';
+      zeile.appendChild(haken);
+      zeile.appendChild(document.createTextNode(t.immer));
+      var link = document.createElement('a');
+      link.href = 'https://onlang.de/datenschutz';
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.textContent = t.datenschutz;
+      link.style.cssText = 'color:#F47A1F;font-size:13px;';
+      knopf.addEventListener('click', function () {
+        ytErlaubtSitzung = true;
+        if (haken.checked) {
+          try { window.localStorage.setItem(YT_IMMER_SCHLUESSEL, '1'); } catch (e) {}
+        }
+        ytHinweis.style.display = 'none';
+        weiter();
+      });
+      ytHinweis.appendChild(titel);
+      ytHinweis.appendChild(text);
+      ytHinweis.appendChild(knopf);
+      ytHinweis.appendChild(zeile);
+      ytHinweis.appendChild(link);
+      ytHinweis.style.display = 'flex';
+    }
+
     function loadYouTube(src) {
       ytCurrentId = extractYouTubeId(src);
       ytLastError = '';
@@ -324,11 +425,25 @@ window.ONLANG.player = window.ONLANG.player || {};
       showEngine('youtube');
       state.set(STATES.LOADING);
 
+      // Ohne Zustimmung: nichts von YouTube laden, nur den Hinweis zeigen.
+      if (!ytErlaubt()) {
+        console.log('[ONLANG Player] YouTube wartet auf Zustimmung:', ytCurrentId);
+        zeigeYtHinweis(function () {
+          if (engine === 'youtube') starteYouTube();
+        });
+        return;
+      }
+      if (ytHinweis) ytHinweis.style.display = 'none';
+      starteYouTube();
+    }
+
+    function starteYouTube() {
       console.log('[ONLANG Player] Lade YouTube:', ytCurrentId);
 
       loadYouTubeApi().then(function () {
         if (!ytPlayer) {
           ytPlayer = new YT.Player(ytMount, {
+            host: 'https://www.youtube-nocookie.com',
             width: '100%',
             height: '100%',
             playerVars: {
