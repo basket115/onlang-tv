@@ -137,7 +137,8 @@
 
     entries.forEach(function (entry) {
       var src = entry && entry.src ? String(entry.src) : '';
-      if (!src || seen[src]) return;
+      // YouTube nie vorab laden: erst nach Zustimmung (2-Klick, player-controller.js).
+      if (!src || seen[src] || /youtu\.?be/i.test(src)) return;
       seen[src] = true;
       sources.push(src);
     });
