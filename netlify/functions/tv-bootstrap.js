@@ -16,6 +16,13 @@
  *                       neutralen Demo-Sender)
  *   TV_UNAVAILABLE   -> Supabase nicht erreichbar (Seite zeigt nur einen
  *                       Hinweis, keine Demo-Videos)
+ *
+ * Nutzungszaehlung (Betreiber-Dashboard, onlang-supabase sql/034): jeder
+ * erfolgreiche Abruf des Vollbild-TV zaehlt einmal (nutzung_tag, Kanal
+ * "tv") - nur Kunden-ID und Zahl, keine Person, keine IP. Das in die
+ * Website eingebettete TV (website-tv.html schickt ?eingebettet=1) zaehlt
+ * nicht, den Aufruf zaehlt schon die Website. Die Antwort wartet nie auf
+ * die Zaehlung.
  */
 
 const LOG = "[TV]";
@@ -144,6 +151,35 @@ function zuMedium(row, index) {
   };
 }
 
+// Wirft nie und wartet hoechstens 3 Sekunden.
+async function zaehleTv(kundenId) {
+  try {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const secretKey = process.env.SUPABASE_SECRET_KEY;
+    if (!supabaseUrl || !secretKey) return;
+    const response = await fetch(`${supabaseUrl}/rest/v1/rpc/nutzung_zaehlen`, {
+      method: "POST",
+      headers: { apikey: secretKey, "Content-Type": "application/json" },
+      body: JSON.stringify({ p_kunden_id: kundenId, p_kanal: "tv" }),
+      signal: AbortSignal.timeout(3000)
+    });
+    if (!response.ok) console.error(`${LOG} Nutzung nicht gezaehlt`, response.status);
+    if (response.body) await response.body.cancel();
+  } catch (error) {
+    console.error(`${LOG} Nutzung nicht gezaehlt`, error && error.name);
+  }
+}
+
+// Nach der Antwort weiterlaufen lassen (waitUntil), ohne darauf zu warten.
+function imHintergrund(context, arbeit) {
+  if (!context || typeof context.waitUntil !== "function") return;
+  try {
+    context.waitUntil(arbeit);
+  } catch {
+    // laeuft trotzdem weiter
+  }
+}
+
 function zuTenant(kunde, sprache) {
   const sender =
     (text(kunde.short_name) || text(kunde.verein_name) || "ONLANG") + " TV";
@@ -168,7 +204,7 @@ function zuTenant(kunde, sprache) {
   };
 }
 
-export default async function handler(request) {
+export default async function handler(request, context) {
   const params = new URL(request.url).searchParams;
 
   const requested = text(params.get("kunde") || params.get("tenant"));
@@ -201,6 +237,8 @@ export default async function handler(request) {
     text(kunden[0].sprache).toLowerCase() === "hu" ? "hu" : "de";
 
   const tenant = zuTenant(kunden[0], sprache);
+
+  if (params.get("eingebettet") !== "1") imHintergrund(context, zaehleTv(tenant.customerId));
 
   const jetzt = Date.now();
   const videos = [];

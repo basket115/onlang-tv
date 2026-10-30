@@ -199,6 +199,20 @@ window.ONLANG.tenantRegistry =
 
 
   /**
+   * Eingebettete Ansicht (website-tv.html oder ?modus=embed)?
+   * @returns {boolean}
+   */
+  function istEingebettet() {
+    try {
+      var config = window.ONLANG && window.ONLANG.config;
+      var runtime = config && config.RuntimeConfig;
+      return !!runtime && runtime.getRuntimeConfig().modus === 'embed';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /**
    * Lädt Daten über die Netlify Function.
    *
    * @param {string} requestedId
@@ -213,6 +227,12 @@ window.ONLANG.tenantRegistry =
       encodeURIComponent(
         requestedId
       );
+
+    // Eingebettet (website-tv.html oder ?modus=embed): die Function zählt
+    // diesen Aufruf nicht als TV-Aufruf, die Website zählt ihn schon.
+    if (istEingebettet()) {
+      url += '&eingebettet=1';
+    }
 
     console.info(
       '[ONLANG TV] Lade Bootstrap:',

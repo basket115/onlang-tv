@@ -13,10 +13,12 @@ process.env.SUPABASE_SECRET_KEY = 'geheim';
 let passed = 0;
 let tabellen = {};
 let abrufe = [];
+let zaehlStatus = 204;
 
 globalThis.fetch = async (url, init) => {
   abrufe.push({ url: String(url), init });
   const tabelle = String(url).split('/rest/v1/')[1].split('?')[0];
+  if (tabelle === 'rpc/nutzung_zaehlen') return new Response(null, { status: zaehlStatus });
   const inhalt = tabellen[tabelle];
   if (inhalt === 'kaputt') throw new Error('Netz weg');
   if (inhalt === undefined) return new Response('{}', { status: 500 });
@@ -25,13 +27,20 @@ globalThis.fetch = async (url, init) => {
 
 const originalError = console.error;
 
+// context mit waitUntil wie bei Netlify; arbeiten = Hintergrund-Arbeiten.
+let arbeiten = [];
 async function abruf(query) {
   abrufe = [];
+  arbeiten = [];
   console.error = () => {};
-  const response = await handler(new Request('https://tv.test/.netlify/functions/tv-bootstrap' + query));
+  const context = { waitUntil: (p) => arbeiten.push(p) };
+  const response = await handler(new Request('https://tv.test/.netlify/functions/tv-bootstrap' + query), context);
+  await Promise.all(arbeiten);
   console.error = originalError;
   return { status: response.status, body: await response.json() };
 }
+
+const zaehlAufrufe = () => abrufe.filter((a) => a.url.endsWith('/rest/v1/rpc/nutzung_zaehlen'));
 
 async function test(name, fn) {
   await fn();
@@ -166,6 +175,41 @@ await test('fehlende Umgebungsvariablen: TV_UNAVAILABLE', async () => {
   const { status, body } = await abruf('?kunde=V002');
   process.env.SUPABASE_URL = url;
   gleich([status, body.error.code], [503, 'TV_UNAVAILABLE']);
+});
+
+await test('Nutzung: Vollbild-TV zählt einmal (Kunden-ID aus kunden, Kanal tv), eingebettet nicht', async () => {
+  tabellen = { kunden: [V002], tv_inhalte: [] };
+  await abruf('?kunde=v002');
+  const zaehlen = zaehlAufrufe();
+  gleich(zaehlen.length, 1, 'ein Zählaufruf');
+  gleich(JSON.parse(zaehlen[0].init.body), { p_kunden_id: 'V002', p_kanal: 'tv' });
+  gleich(zaehlen[0].init.headers.apikey, 'geheim');
+  gleich(arbeiten.length, 1, 'über waitUntil');
+
+  await abruf('?kunde=V002&eingebettet=1');
+  gleich(zaehlAufrufe().length, 0, 'eingebettet zählt nicht');
+
+  tabellen = { kunden: [], tv_inhalte: [] };
+  await abruf('?kunde=XX999');
+  gleich(zaehlAufrufe().length, 0, 'unbekannter Kunde zählt nicht');
+  tabellen = { kunden: 'kaputt', tv_inhalte: [] };
+  await abruf('?kunde=V002');
+  gleich(zaehlAufrufe().length, 0, 'Fehler zählt nicht');
+});
+
+await test('Nutzung: Fehler beim Zählen ändern die Antwort nicht, ohne waitUntil kein Fehler', async () => {
+  tabellen = { kunden: [V002], tv_inhalte: [] };
+  zaehlStatus = 500;
+  const mitFehler = await abruf('?kunde=V002');
+  zaehlStatus = 204;
+  const normal = await abruf('?kunde=V002');
+  gleich([mitFehler.status, mitFehler.body.success], [200, true]);
+  gleich(mitFehler.body.tenant, normal.body.tenant);
+  console.error = () => {};
+  const ohne = await handler(new Request('https://tv.test/.netlify/functions/tv-bootstrap?kunde=V002'));
+  await new Promise((r) => setTimeout(r, 10));
+  console.error = originalError;
+  gleich(ohne.status, 200);
 });
 
 console.log(`tv-bootstrap.test.js: ${passed} Tests bestanden\n`);
