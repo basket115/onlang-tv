@@ -23,7 +23,7 @@ window.ONLANG.views = window.ONLANG.views || {};
     var nameEl = container.querySelector('.tv-name');
     var taglineEl = container.querySelector('.tv-tagline');
 
-    if (logoEl) renderLogoInto(logoEl, tenant.logoUrl, tenant.logoText || initials(tenant.name), tenant.name);
+    if (logoEl) renderLogoInto(logoEl, tenant.logoUrl, tenant.logoText || initials(tenant.name), tenant.name, true);
     if (nameEl) nameEl.textContent = tenant.name;
     if (taglineEl) taglineEl.textContent = tenant.tagline || '';
   }
@@ -37,15 +37,26 @@ window.ONLANG.views = window.ONLANG.views || {};
    * @param {string} logoUrl
    * @param {string} fallbackText
    * @param {string} altText
+   * @param {boolean} zuschneiden - nur Vereinslogo oben links: leeren Rand
+   *   (z. B. viel Weiß um das Logo) bei Cloudinary wegschneiden lassen.
+   *   Website und App bleiben unverändert, sie bekommen das Original.
    */
-  function renderLogoInto(container, logoUrl, fallbackText, altText) {
+  function renderLogoInto(container, logoUrl, fallbackText, altText, zuschneiden) {
     container.innerHTML = '';
     if (logoUrl) {
       var img = document.createElement('img');
-      img.src = logoUrl;
+      var zugeschnitten = zuschneiden ? zugeschnitteneLogoAdresse(logoUrl) : '';
+      img.src = zugeschnitten || logoUrl;
       img.alt = altText || '';
-      img.className = 'tv-logo-image';
+      img.className = 'tv-logo-image' + (zugeschnitten ? ' tv-logo-image--zugeschnitten' : '');
       img.addEventListener('error', function () {
+        // Zugeschnittene Fassung klappt nicht: einmal das Original versuchen.
+        if (zugeschnitten) {
+          zugeschnitten = '';
+          img.className = 'tv-logo-image';
+          img.src = logoUrl;
+          return;
+        }
         container.innerHTML = '<span class="tv-logo-text"></span>';
         container.querySelector('.tv-logo-text').textContent = fallbackText;
       });
@@ -56,6 +67,16 @@ window.ONLANG.views = window.ONLANG.views || {};
     span.className = 'tv-logo-text';
     span.textContent = fallbackText;
     container.appendChild(span);
+  }
+
+  // Cloudinary-Bild (…/image/upload/…): e_trim schneidet den gleichfarbigen
+  // bzw. durchsichtigen Rand weg (Toleranz 10), c_limit,w_400 verkleinert
+  // große Dateien (das Logo ist höchstens ca. 112 px groß). Sonst ''.
+  var CLOUDINARY_UPLOAD = /^(https:\/\/res\.cloudinary\.com\/[a-z0-9_-]+\/image\/upload\/)(.+)$/i;
+  function zugeschnitteneLogoAdresse(logoUrl) {
+    var teile = CLOUDINARY_UPLOAD.exec(String(logoUrl || ''));
+    if (!teile || /(^|[\/,])e_trim/.test(teile[2])) return '';
+    return teile[1] + 'e_trim:10/c_limit,w_400/' + teile[2];
   }
 
   function applyPresenter(container, data) {

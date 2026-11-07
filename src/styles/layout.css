@@ -2196,3 +2196,12 @@ body.tenant-scorpions-sggierath .playlist-item-live {
   .tv-footer { display: block; text-align: center; }
   .tv-footer span { display: block; margin-top: 3px; }
 }
+
+/* Vereinslogo oben links, zugeschnitten (view-helpers.js: Cloudinary e_trim
+   entfernt den leeren Rand). Damit die Ecken des Logos nicht vom Kreis
+   abgeschnitten werden, bleibt innen ein gleichmäßiger Rand von 13 %.
+   Gilt für alle Vereine und geht vor die Vereins-Regeln (padding: 0). */
+.tv-logo .tv-logo-image.tv-logo-image--zugeschnitten {
+  padding: 13%;
+  background: #ffffff;
+}
